@@ -1,0 +1,42 @@
+Package: coiCheckR
+Title: Screen Peer Reviewer Candidates for Conflicts of Interest
+Version: 0.1.0
+Authors@R: person("Janani", "Ravi", email = "janani.ravi@cuanschutz.edu",
+    role = c("aut", "cre"))
+Description: Screens candidate peer reviewers (for journal manuscripts or
+    grant applications) against a manuscript's author list for conflicts
+    of interest. Builds co-authorship evidence from PubMed/PMC via
+    'rentrez', resolves NIH-funded shared-award conflicts via the NIH
+    RePORTER API, and enriches preprint records via the bioRxiv API.
+    Detects direct co-authorship, time-windowed co-authorship (e.g. the
+    NIH "last 4 years" rule), second-degree co-authorship (a candidate's
+    frequent collaborators overlapping with an author's), and shared
+    federal funding. Returns a tidy, auditable conflict report rather
+    than a silent accept/reject decision, since COI judgment calls
+    should stay with the editor.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.2.0)
+Imports:
+    rentrez,
+    httr2,
+    jsonlite,
+    xml2,
+    tibble,
+    dplyr,
+    purrr,
+    stringr,
+    rlang,
+    igraph
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    withr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/jravilab/coiCheckR
+BugReports: https://github.com/jravilab/coiCheckR/issues
+biocViews: Software, Visualization, ResearchTools
