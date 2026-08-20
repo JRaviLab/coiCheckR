@@ -1,16 +1,17 @@
 #' coiCheckR: Screen Peer Reviewer Candidates for Conflicts of Interest
 #'
 #' See the README and `vignette("coiCheckR")` for a walkthrough. Start
-#' with [check_coi()] for a single candidate or [check_coi_batch()] for
+#' with [checkCoi()] for a single candidate or [checkCoiBatch()] for
 #' a shortlist.
 #'
 #' @section Rate limits:
 #' PubMed E-utilities allow 3 requests/sec without a key, 10/sec with
 #' one. If you're screening more than a handful of names, get a free key
 #' at <https://www.ncbi.nlm.nih.gov/account/settings/> and call
-#' [set_ncbi_key()] once per session.
+#' [setNcbiKey()] once per session.
 #'
 #' @keywords internal
+#' @importFrom rlang .data
 "_PACKAGE"
 
 #' Set your NCBI API key for the session
@@ -23,7 +24,7 @@
 #'
 #' @param key Character scalar, your NCBI API key.
 #' @export
-set_ncbi_key <- function(key) {
+setNcbiKey <- function(key) {
   rentrez::set_entrez_key(key)
   invisible(TRUE)
 }

@@ -11,7 +11,7 @@
 #' @param author_names Character vector of the manuscript's author names,
 #'   same format.
 #' @param affiliation Optional affiliation substring to disambiguate a
-#'   common candidate surname (passed to [pm_search_author()]).
+#'   common candidate surname (passed to [pmSearchAuthor()]).
 #' @param coauthor_window_years Lookback window in years for *direct*
 #'   co-authorship, or `NULL` for unrestricted. Many journals use 3--4
 #'   years (e.g. NIH study section policy uses 3); ICMJE-aligned
@@ -23,18 +23,18 @@
 #' @param funding_fiscal_years Optional integer vector to scope the
 #'   RePORTER query.
 #'
-#' @return An object of class `coi_report` (a list of tibbles:
+#' @return An object of class `coiReport` (a list of tibbles:
 #'   `direct`, `second_degree`, `funding`), printable via the package's
-#'   `print.coi_report` method, which gives a one-line summary per
+#'   `print.coiReport` method, which gives a one-line summary per
 #'   evidence type.
 #' @export
-check_coi <- function(candidate_name,
-                       author_names,
-                       affiliation = NULL,
-                       coauthor_window_years = NULL,
-                       check_second_degree = TRUE,
-                       check_funding = TRUE,
-                       funding_fiscal_years = NULL) {
+checkCoi <- function(candidate_name,
+                     author_names,
+                     affiliation = NULL,
+                     coauthor_window_years = NULL,
+                     check_second_degree = TRUE,
+                     check_funding = TRUE,
+                     funding_fiscal_years = NULL) {
   stopifnot(is.character(candidate_name), length(candidate_name) == 1)
   stopifnot(is.character(author_names), length(author_names) >= 1)
 
@@ -45,10 +45,16 @@ check_coi <- function(candidate_name,
   }
 
   # --- direct co-authorship ---
-  cand_pubs <- pm_coauthors(candidate_name, affiliation = affiliation, min_year = min_year)
-  cand_edges <- build_coauthor_edges(cand_pubs) |>
-    dplyr::filter(.data$from == candidate_name | .data$to == candidate_name) |>
-    dplyr::mutate(other = ifelse(.data$from == candidate_name, .data$to, .data$from))
+  cand_pubs <- pmCoauthors(
+    candidate_name, affiliation = affiliation, min_year = min_year
+  )
+  cand_edges <- buildCoauthorEdges(cand_pubs) |>
+    dplyr::filter(
+      .data$from == candidate_name | .data$to == candidate_name
+    ) |>
+    dplyr::mutate(other = dplyr::if_else(
+      .data$from == candidate_name, .data$to, .data$from
+    ))
 
   direct <- cand_edges |>
     dplyr::filter(.data$other %in% author_names) |>
@@ -62,14 +68,16 @@ check_coi <- function(candidate_name,
 
   # --- second-degree ---
   second_degree <- if (check_second_degree) {
-    second_degree_conflicts(candidate_name, author_names, min_year = min_year)
+    secondDegreeConflicts(candidate_name, author_names, min_year = min_year)
   } else {
     tibble::tibble()
   }
 
   # --- shared funding ---
   funding <- if (check_funding) {
-    reporter_shared_awards(candidate_name, author_names, fiscal_years = funding_fiscal_years)
+    reporterSharedAwards(
+      candidate_name, author_names, fiscal_years = funding_fiscal_years
+    )
   } else {
     tibble::tibble()
   }
@@ -82,13 +90,15 @@ check_coi <- function(candidate_name,
       second_degree = second_degree,
       funding = funding
     ),
-    class = "coi_report"
+    class = "coiReport"
   )
 }
 
 #' @export
-print.coi_report <- function(x, ...) {
-  cat(sprintf("COI screen: %s vs. %d author(s)\n", x$candidate, length(x$authors)))
+print.coiReport <- function(x, ...) {
+  cat(sprintf(
+    "COI screen: %s vs. %d author(s)\n", x$candidate, length(x$authors)
+  ))
   cat(sprintf("  direct co-authorship:    %d hit(s)\n", nrow(x$direct)))
   cat(sprintf("  second-degree overlap:   %d hit(s)\n", nrow(x$second_degree)))
   cat(sprintf("  shared NIH awards:       %d hit(s)\n", nrow(x$funding)))
@@ -109,20 +119,20 @@ print.coi_report <- function(x, ...) {
 
 #' Screen multiple candidates at once
 #'
-#' Vectorised convenience wrapper over [check_coi()].
+#' Vectorised convenience wrapper over [checkCoi()].
 #'
 #' @param candidate_names Character vector of candidates.
-#' @param author_names As in [check_coi()].
-#' @param ... Passed to [check_coi()].
+#' @param author_names As in [checkCoi()].
+#' @param ... Passed to [checkCoi()].
 #'
-#' @return A named list of `coi_report` objects, one per candidate, plus
+#' @return A named list of `coiReport` objects, one per candidate, plus
 #'   a `$summary` tibble (`candidate`, `n_direct`, `n_second_degree`,
 #'   `n_funding`) for quick triage.
 #' @export
-check_coi_batch <- function(candidate_names, author_names, ...) {
+checkCoiBatch <- function(candidate_names, author_names, ...) {
   reports <- purrr::map(
     candidate_names,
-    ~ check_coi(.x, author_names, ...)
+    ~ checkCoi(.x, author_names, ...)
   )
   names(reports) <- candidate_names
 

@@ -17,17 +17,14 @@ Description: Screens candidate peer reviewers (for journal manuscripts or
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
 Depends: R (>= 4.2.0)
 Imports:
     rentrez,
     httr2,
-    jsonlite,
     xml2,
     tibble,
     dplyr,
     purrr,
-    stringr,
     rlang,
     igraph
 Suggests:
@@ -40,3 +37,4 @@ VignetteBuilder: knitr
 URL: https://github.com/jravilab/coiCheckR
 BugReports: https://github.com/jravilab/coiCheckR/issues
 biocViews: Software, Visualization, ResearchTools
+Config/roxygen2/version: 8.0.0

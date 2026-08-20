@@ -3,12 +3,12 @@
 #' Thin wrapper around [rentrez::entrez_search()] scoped to the `pubmed`
 #' database, using the `[Author]` and (optionally) `[Affiliation]` search
 #' fields. Affiliation matching in PubMed is a substring match on the
-#' recorded affiliation string, so keep it short (e.g. `"Melbourne"`
+#' recorded affiliation string, so keep it short (e.g. `"Colorado"`
 #' rather than a full department name) to avoid false negatives from
 #' formatting drift across papers.
 #'
 #' @param author Character scalar, `"Last FM"` format (PubMed convention),
-#'   e.g. `"Davies MR"`.
+#'   e.g. `"Smith AB"`.
 #' @param affiliation Optional character scalar to narrow by affiliation
 #'   substring. Recommended when the surname is common.
 #' @param min_year,max_year Optional integer bounds on publication year.
@@ -16,11 +16,11 @@
 #'
 #' @return Character vector of PMIDs (possibly empty).
 #' @export
-pm_search_author <- function(author,
-                              affiliation = NULL,
-                              min_year = NULL,
-                              max_year = NULL,
-                              retmax = 300) {
+pmSearchAuthor <- function(author,
+                           affiliation = NULL,
+                           min_year = NULL,
+                           max_year = NULL,
+                           retmax = 300) {
   stopifnot(is.character(author), length(author) == 1)
 
   term <- sprintf("%s[Author]", author)
@@ -29,7 +29,11 @@ pm_search_author <- function(author,
   }
   if (!is.null(min_year) || !is.null(max_year)) {
     lo <- if (is.null(min_year)) "1900" else as.character(min_year)
-    hi <- if (is.null(max_year)) format(Sys.Date(), "%Y") else as.character(max_year)
+    hi <- if (is.null(max_year)) {
+      format(Sys.Date(), "%Y")
+    } else {
+      as.character(max_year)
+    }
     term <- sprintf("%s AND (%s:%s[pdat])", term, lo, hi)
   }
 
@@ -55,7 +59,7 @@ pm_search_author <- function(author,
 #'   `pmid`, `year`, `journal`, `author_last`, `author_fore`,
 #'   `affiliation`.
 #' @export
-pm_fetch_authors <- function(pmids, batch_size = 150, pause = 0.4) {
+pmFetchAuthors <- function(pmids, batch_size = 150, pause = 0.4) {
   pmids <- unique(as.character(pmids))
   if (length(pmids) == 0) {
     return(tibble::tibble(
@@ -95,7 +99,9 @@ pm_fetch_authors <- function(pmids, batch_size = 150, pause = 0.4) {
           pmid = pmid, year = year, journal = journal,
           author_last = xml2::xml_text(xml2::xml_find_first(a, ".//LastName")),
           author_fore = xml2::xml_text(xml2::xml_find_first(a, ".//ForeName")),
-          affiliation = xml2::xml_text(xml2::xml_find_first(a, ".//AffiliationInfo/Affiliation"))
+          affiliation = xml2::xml_text(xml2::xml_find_first(
+            a, ".//AffiliationInfo/Affiliation"
+          ))
         )
       })
     })
@@ -106,19 +112,19 @@ pm_fetch_authors <- function(pmids, batch_size = 150, pause = 0.4) {
 
 #' Get a tidy co-authorship table for one author
 #'
-#' Convenience wrapper combining [pm_search_author()] and
-#' [pm_fetch_authors()].
+#' Convenience wrapper combining [pmSearchAuthor()] and
+#' [pmFetchAuthors()].
 #'
-#' @inheritParams pm_search_author
-#' @param ... Passed to [pm_fetch_authors()].
+#' @inheritParams pmSearchAuthor
+#' @param ... Passed to [pmFetchAuthors()].
 #'
-#' @return Tibble as returned by [pm_fetch_authors()], plus a
+#' @return Tibble as returned by [pmFetchAuthors()], plus a
 #'   `query_author` column identifying whose search produced each row.
 #' @export
-pm_coauthors <- function(author, affiliation = NULL, min_year = NULL,
-                          max_year = NULL, retmax = 300, ...) {
-  pmids <- pm_search_author(author, affiliation, min_year, max_year, retmax)
-  out <- pm_fetch_authors(pmids, ...)
+pmCoauthors <- function(author, affiliation = NULL, min_year = NULL,
+                        max_year = NULL, retmax = 300, ...) {
+  pmids <- pmSearchAuthor(author, affiliation, min_year, max_year, retmax)
+  out <- pmFetchAuthors(pmids, ...)
   out$query_author <- author
   out
 }

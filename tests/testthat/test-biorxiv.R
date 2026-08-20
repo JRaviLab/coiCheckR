@@ -1,11 +1,11 @@
-test_that("biorxiv_split_authors splits a semicolon-delimited string", {
-  x <- "Brouwer S.; Barnett T.C.; Davies M.R.; Walker M.J."
-  out <- biorxiv_split_authors(x)
+test_that("biorxivSplitAuthors splits a semicolon-delimited string", {
+  x <- "Smith A.; Lee B.C.; Park D.E.; Chen F.G."
+  out <- biorxivSplitAuthors(x)
   expect_length(out, 4)
-  expect_equal(out[1], "Brouwer S.")
+  expect_equal(out[1], "Smith A.")
 })
 
-test_that("biorxiv_split_authors handles NA / empty gracefully", {
-  expect_length(biorxiv_split_authors(NA_character_), 0)
-  expect_length(biorxiv_split_authors(""), 0)
+test_that("biorxivSplitAuthors handles NA / empty gracefully", {
+  expect_length(biorxivSplitAuthors(NA_character_), 0)
+  expect_length(biorxivSplitAuthors(""), 0)
 })

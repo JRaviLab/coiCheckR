@@ -1,23 +1,27 @@
 #' Build a co-authorship edge list from a tidy PubMed table
 #'
-#' Converts the per-(pmid, author) rows from [pm_fetch_authors()] into
+#' Converts the per-(pmid, author) rows from [pmFetchAuthors()] into
 #' pairwise co-author edges (every pair of authors sharing a PMID), with
 #' the query author's own name excluded as a "co-author of themself".
 #'
-#' @param pm_tbl Output of [pm_fetch_authors()] or [pm_coauthors()].
+#' @param pm_tbl Output of [pmFetchAuthors()] or [pmCoauthors()].
 #' @return A tibble edge list: `from`, `to` (both `"Last FM"`), `pmid`,
 #'   `year`.
 #' @export
-build_coauthor_edges <- function(pm_tbl) {
+buildCoauthorEdges <- function(pm_tbl) {
   pm_tbl <- pm_tbl |>
     dplyr::filter(!is.na(.data$author_last)) |>
-    dplyr::mutate(author_name = paste(.data$author_last, .data$author_fore))
+    dplyr::mutate(author_name = paste(
+      .data$author_last, .pm_normalize_forename(.data$author_fore)
+    ))
 
   pm_tbl |>
     dplyr::group_by(.data$pmid, .data$year) |>
     dplyr::group_modify(function(grp, ...) {
       nms <- grp$author_name
-      if (length(nms) < 2) return(tibble::tibble(from = character(), to = character()))
+      if (length(nms) < 2) {
+        return(tibble::tibble(from = character(), to = character()))
+      }
       pairs <- utils::combn(nms, 2, simplify = FALSE)
       tibble::tibble(
         from = purrr::map_chr(pairs, 1),
@@ -25,6 +29,28 @@ build_coauthor_edges <- function(pm_tbl) {
       )
     }) |>
     dplyr::ungroup()
+}
+
+# PubMed's ForeName field is inconsistently abbreviated -- some records
+# carry initials ("MR"), others the full given name ("Monica Rose"). Both
+# candidate_name/author_names and the "Last FM" documented input format
+# assume initials, so collapse any full given name to its initials here to
+# keep matching against user-supplied names reliable.
+.pm_normalize_forename <- function(fore) {
+  vapply(fore, function(f) {
+    if (is.na(f) || !nzchar(f)) {
+      return(NA_character_)
+    }
+    toks <- strsplit(f, "[[:space:].-]+")[[1]]
+    toks <- toks[nzchar(toks)]
+    if (length(toks) == 0) {
+      return(NA_character_)
+    }
+    initials <- vapply(toks, function(t) {
+      if (grepl("^[A-Z]{1,4}$", t)) t else toupper(substr(t, 1, 1))
+    }, character(1))
+    paste0(initials, collapse = "")
+  }, character(1), USE.NAMES = FALSE)
 }
 
 #' Detect second-degree co-authorship conflicts
@@ -38,7 +64,7 @@ build_coauthor_edges <- function(pm_tbl) {
 #' three years ago being tied to a paper author is much weaker evidence
 #' than a recurring collaborator.
 #'
-#' @param candidate_name,author_names As in [reporter_shared_awards()].
+#' @param candidate_name,author_names As in [reporterSharedAwards()].
 #' @param min_year Restrict co-authorship evidence to this year or later
 #'   (e.g. `Sys.Date() |> format("%Y") |> as.integer() - 4` for a 4-year
 #'   window matching common COI policy).
@@ -51,14 +77,18 @@ build_coauthor_edges <- function(pm_tbl) {
 #'   `n_shared_with_candidate`, `evidence_pmid` (the PMID linking the
 #'   collaborator to the author).
 #' @export
-second_degree_conflicts <- function(candidate_name, author_names,
-                                     min_year = NULL, min_shared_pubs = 2) {
-  cand_pubs <- pm_coauthors(candidate_name, min_year = min_year)
-  cand_edges <- build_coauthor_edges(cand_pubs)
+secondDegreeConflicts <- function(candidate_name, author_names,
+                                  min_year = NULL, min_shared_pubs = 2) {
+  cand_pubs <- pmCoauthors(candidate_name, min_year = min_year)
+  cand_edges <- buildCoauthorEdges(cand_pubs)
 
   cand_collab_counts <- cand_edges |>
-    dplyr::filter(.data$from == candidate_name | .data$to == candidate_name) |>
-    dplyr::mutate(collaborator = ifelse(.data$from == candidate_name, .data$to, .data$from)) |>
+    dplyr::filter(
+      .data$from == candidate_name | .data$to == candidate_name
+    ) |>
+    dplyr::mutate(collaborator = dplyr::if_else(
+      .data$from == candidate_name, .data$to, .data$from
+    )) |>
     dplyr::count(.data$collaborator, name = "n_shared_with_candidate") |>
     dplyr::filter(.data$n_shared_with_candidate >= min_shared_pubs)
 
@@ -70,16 +100,20 @@ second_degree_conflicts <- function(candidate_name, author_names,
   }
 
   purrr::map_dfr(author_names, function(auth) {
-    auth_pubs <- pm_coauthors(auth, min_year = min_year)
-    auth_edges <- build_coauthor_edges(auth_pubs) |>
+    auth_pubs <- pmCoauthors(auth, min_year = min_year)
+    auth_edges <- buildCoauthorEdges(auth_pubs) |>
       dplyr::filter(.data$from == auth | .data$to == auth) |>
-      dplyr::mutate(other = ifelse(.data$from == auth, .data$to, .data$from))
+      dplyr::mutate(other = dplyr::if_else(
+        .data$from == auth, .data$to, .data$from
+      ))
 
     hits <- dplyr::inner_join(
       cand_collab_counts, auth_edges,
       by = c("collaborator" = "other")
     )
-    if (nrow(hits) == 0) return(NULL)
+    if (nrow(hits) == 0) {
+      return(NULL)
+    }
 
     tibble::tibble(
       candidate_collaborator = hits$collaborator,
