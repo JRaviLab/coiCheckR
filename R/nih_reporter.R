@@ -24,6 +24,11 @@
 #' @return A tibble with one row per project: `project_num`,
 #'   `fiscal_year`, `org_name`, `project_title`, `contact_pi`,
 #'   `all_pis` (a list-column of every PI/co-PI name on that award).
+#' @examples
+#' tryCatch(
+#'   reporterSearchPi("Smith, Anne", fiscal_years = 2020:2023),
+#'   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 reporterSearchPi <- function(pi_name, fiscal_years = NULL, limit = 500) {
   stopifnot(is.character(pi_name), length(pi_name) == 1)
@@ -111,6 +116,11 @@ reporterSearchPi <- function(pi_name, fiscal_years = NULL, limit = 500) {
 #'   typically use a 3-year window).
 #'
 #' @return A tibble of shared awards, or zero rows if none found.
+#' @examples
+#' tryCatch(
+#'   reporterSharedAwards("Smith, Anne", "Lee, Charles", fiscal_years = 2020:2023),
+#'   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 reporterSharedAwards <- function(candidate_name, author_names,
                                  fiscal_years = NULL) {

@@ -27,3 +27,12 @@ Retrieves PubMed XML records in batches (E-utilities caps \code{efetch} at
 automatically) and parses each record's author list, publication year,
 and journal.
 }
+\examples{
+tryCatch(
+  {
+    ids <- pmSearchAuthor("Smith AB")
+    pmFetchAuthors(ids[seq_len(min(5, length(ids)))])
+  },
+  error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+)
+}

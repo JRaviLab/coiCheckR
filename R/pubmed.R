@@ -15,6 +15,11 @@
 #' @param retmax Maximum records to retrieve. Default 300.
 #'
 #' @return Character vector of PMIDs (possibly empty).
+#' @examples
+#' tryCatch(
+#'   pmSearchAuthor("Smith AB", affiliation = "State University"),
+#'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 pmSearchAuthor <- function(author,
                            affiliation = NULL,
@@ -58,6 +63,14 @@ pmSearchAuthor <- function(author,
 #' @return A [tibble::tibble()] with one row per (pmid, author): columns
 #'   `pmid`, `year`, `journal`, `author_last`, `author_fore`,
 #'   `affiliation`.
+#' @examples
+#' tryCatch(
+#'   {
+#'     ids <- pmSearchAuthor("Smith AB")
+#'     pmFetchAuthors(ids[seq_len(min(5, length(ids)))])
+#'   },
+#'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 pmFetchAuthors <- function(pmids, batch_size = 150, pause = 0.4) {
   pmids <- unique(as.character(pmids))
@@ -120,6 +133,11 @@ pmFetchAuthors <- function(pmids, batch_size = 150, pause = 0.4) {
 #'
 #' @return Tibble as returned by [pmFetchAuthors()], plus a
 #'   `query_author` column identifying whose search produced each row.
+#' @examples
+#' tryCatch(
+#'   pmCoauthors("Smith AB"),
+#'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 pmCoauthors <- function(author, affiliation = NULL, min_year = NULL,
                         max_year = NULL, retmax = 300, ...) {

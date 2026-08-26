@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup-opts, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -26,13 +26,18 @@ with no joint publication yet. `coiCheckR` checks all three and
 returns evidence for each -- not a conflicted/clear verdict, since
 that judgment call should stay with the editor.
 
-This vignette uses a real, confirmed conflict as its running example:
-the package author, Janani Ravi (`"Ravi J"`), and her CU Anschutz
-colleague Arjun Krishnan (`"Krishnan A"`), who have co-published and
-hold NIH funding together. A screen against this pair is expected to
-flag on all three evidence types -- direct co-authorship, second-degree
-overlap, and shared NIH funding. A fictitious candidate, `"Doe C"`, is
-included alongside as a clean comparison.
+This vignette uses illustrative placeholder names (`"Smith AB"`,
+`"Lee C"`, `"Doe C"`) as its running example -- substitute a candidate
+and author pair you know to share co-authorship and NIH funding to see
+a live screen flag on all three evidence types: direct co-authorship,
+second-degree overlap, and shared NIH funding. `"Doe C"` is included
+alongside as a clean comparison with no expected hits.
+
+Live network calls in this vignette are gated behind the
+`COICHECKR_RUN_LIVE_TESTS` environment variable and do not run during
+package build/check, so the placeholder names below produce no output
+unless you build this vignette locally with real names and that
+variable set.
 
 ```{r setup}
 library(coiCheckR)
@@ -42,9 +47,8 @@ library(coiCheckR)
 
 ```{r single-candidate}
 report <- checkCoi(
-  candidate_name = "Ravi J",
-  author_names = "Krishnan A",
-  affiliation = "Colorado",
+  candidate_name = "Smith AB",
+  author_names = "Lee C",
   check_second_degree = TRUE,
   check_funding = TRUE
 )
@@ -60,9 +64,8 @@ verifiable evidence, not a verdict.
 
 ```{r batch}
 batch <- checkCoiBatch(
-  candidate_names = c("Ravi J", "Doe C"),
-  author_names = "Krishnan A",
-  affiliation = "Colorado",
+  candidate_names = c("Smith AB", "Doe C"),
+  author_names = "Lee C",
   check_second_degree = TRUE,
   check_funding = TRUE
 )
@@ -88,7 +91,7 @@ numbers directly:
 this_year <- as.integer(format(Sys.Date(), "%Y"))
 last_10y <- (this_year - 9):this_year
 
-reporterSharedAwards("Ravi, Janani", "Krishnan, Arjun", fiscal_years = last_10y)
+reporterSharedAwards("Smith, Anne", "Lee, Charles", fiscal_years = last_10y)
 ```
 
 ## Visualizing a batch result
@@ -107,3 +110,9 @@ different editorial decisions depending on recency, the nature of the
 collaboration, and context the tool has no way to know. `coiCheckR` is
 meant to make that judgment call easier to make well, not to make it
 for you.
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

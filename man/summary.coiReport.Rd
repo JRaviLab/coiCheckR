@@ -19,3 +19,18 @@ zero rows if no conflicts were found.
 \description{
 Tidy summary of a single COI report
 }
+\examples{
+report <- structure(
+  list(
+    candidate = "Smith AB",
+    authors = "Lee C",
+    direct = tibble::tibble(
+      candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+    ),
+    second_degree = tibble::tibble(),
+    funding = tibble::tibble()
+  ),
+  class = "coiReport"
+)
+summary(report)
+}

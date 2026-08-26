@@ -5,6 +5,20 @@
 #' @return A tibble, one row per evidence type present (`relation`,
 #'   `n`, `parties` -- a comma-joined list of the authors involved),
 #'   zero rows if no conflicts were found.
+#' @examples
+#' report <- structure(
+#'   list(
+#'     candidate = "Smith AB",
+#'     authors = "Lee C",
+#'     direct = tibble::tibble(
+#'       candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'     ),
+#'     second_degree = tibble::tibble(),
+#'     funding = tibble::tibble()
+#'   ),
+#'   class = "coiReport"
+#' )
+#' summary(report)
 #' @export
 summary.coiReport <- function(object, ...) {
   rows <- list()
@@ -46,6 +60,26 @@ summary.coiReport <- function(object, ...) {
 #' @param batch Output of [checkCoiBatch()].
 #' @return A character vector, one line per candidate, e.g.
 #'   `"Smith AB -- 1 direct (Lee C), 0 second-degree, 0 funding"`.
+#' @examples
+#' batch <- list(
+#'   `Smith AB` = structure(
+#'     list(
+#'       candidate = "Smith AB",
+#'       authors = "Lee C",
+#'       direct = tibble::tibble(
+#'         candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'       ),
+#'       second_degree = tibble::tibble(),
+#'       funding = tibble::tibble()
+#'     ),
+#'     class = "coiReport"
+#'   ),
+#'   summary = tibble::tibble(
+#'     candidate = "Smith AB",
+#'     n_direct = 1L, n_second_degree = 0L, n_funding = 0L
+#'   )
+#' )
+#' formatCoiSummary(batch)
 #' @export
 formatCoiSummary <- function(batch) {
   candidates <- setdiff(names(batch), "summary")

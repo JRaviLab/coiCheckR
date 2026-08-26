@@ -22,3 +22,18 @@ publication figure -- export the graph via \code{\link[=coiToGraph]{coiToGraph()
 \code{ggraph}/\code{visNetwork} etc. yourself for anything more polished, to
 keep this package's own dependency footprint to base \code{igraph}).
 }
+\examples{
+report <- structure(
+  list(
+    candidate = "Smith AB",
+    authors = "Lee C",
+    direct = tibble::tibble(
+      candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+    ),
+    second_degree = tibble::tibble(),
+    funding = tibble::tibble()
+  ),
+  class = "coiReport"
+)
+plotCoiNetwork(report)
+}

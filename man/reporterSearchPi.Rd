@@ -37,3 +37,9 @@ NIH RePORTER covers NIH-funded projects only. It will not catch NSF,
 DOE, or foundation (e.g. Gates) funding; see \code{coiCheckR} README for
 notes on extending to \code{api.nsf.gov} for NSF awards.
 }
+\examples{
+tryCatch(
+  reporterSearchPi("Smith, Anne", fiscal_years = 2020:2023),
+  error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
+)
+}

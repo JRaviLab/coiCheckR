@@ -7,6 +7,14 @@
 #' @param pm_tbl Output of [pmFetchAuthors()] or [pmCoauthors()].
 #' @return A tibble edge list: `from`, `to` (both `"Last FM"`), `pmid`,
 #'   `year`.
+#' @examples
+#' pm_tbl <- tibble::tibble(
+#'   pmid = c("1", "1", "2"),
+#'   year = c(2020L, 2020L, 2021L),
+#'   author_last = c("Smith", "Lee", "Smith"),
+#'   author_fore = c("AB", "CD", "AB")
+#' )
+#' buildCoauthorEdges(pm_tbl)
 #' @export
 buildCoauthorEdges <- function(pm_tbl) {
   pm_tbl <- pm_tbl |>
@@ -65,6 +73,11 @@ buildCoauthorEdges <- function(pm_tbl) {
 #' than a recurring collaborator.
 #'
 #' @param candidate_name,author_names As in [reporterSharedAwards()].
+#' @param affiliation Optional affiliation substring to disambiguate the
+#'   *candidate* when their surname is common (passed to
+#'   [pmSearchAuthor()], same as [checkCoi()]'s `affiliation` argument).
+#'   Without this, a common-surname candidate's second-degree results can
+#'   include an unrelated same-named person's collaborator network.
 #' @param min_year Restrict co-authorship evidence to this year or later
 #'   (e.g. `Sys.Date() |> format("%Y") |> as.integer() - 4` for a 4-year
 #'   window matching common COI policy).
@@ -76,10 +89,18 @@ buildCoauthorEdges <- function(pm_tbl) {
 #' @return A tibble: `candidate_collaborator`, `linked_author`,
 #'   `n_shared_with_candidate`, `evidence_pmid` (the PMID linking the
 #'   collaborator to the author).
+#' @examples
+#' tryCatch(
+#'   secondDegreeConflicts("Smith AB", "Lee C", min_year = 2020),
+#'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 secondDegreeConflicts <- function(candidate_name, author_names,
-                                  min_year = NULL, min_shared_pubs = 2) {
-  cand_pubs <- pmCoauthors(candidate_name, min_year = min_year)
+                                  affiliation = NULL, min_year = NULL,
+                                  min_shared_pubs = 2) {
+  cand_pubs <- pmCoauthors(
+    candidate_name, affiliation = affiliation, min_year = min_year
+  )
   cand_edges <- buildCoauthorEdges(cand_pubs)
 
   cand_collab_counts <- cand_edges |>

@@ -14,6 +14,20 @@
 #'   is `"direct"`, `"second_degree"`, or `"funding"`; edge attribute
 #'   `evidence` holds the PMID/award number/collaborator name backing
 #'   it.
+#' @examples
+#' report <- structure(
+#'   list(
+#'     candidate = "Smith AB",
+#'     authors = "Lee C",
+#'     direct = tibble::tibble(
+#'       candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'     ),
+#'     second_degree = tibble::tibble(),
+#'     funding = tibble::tibble()
+#'   ),
+#'   class = "coiReport"
+#' )
+#' coiToGraph(report)
 #' @export
 coiToGraph <- function(report) {
   reports <- if (inherits(report, "coiReport")) list(report) else report
@@ -75,6 +89,20 @@ coiToGraph <- function(report) {
 #' @param report As in [coiToGraph()].
 #' @param ... Passed to `igraph`'s `plot()`.
 #' @return Invisibly, the `igraph` object (also drawn as a side effect).
+#' @examples
+#' report <- structure(
+#'   list(
+#'     candidate = "Smith AB",
+#'     authors = "Lee C",
+#'     direct = tibble::tibble(
+#'       candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'     ),
+#'     second_degree = tibble::tibble(),
+#'     funding = tibble::tibble()
+#'   ),
+#'   class = "coiReport"
+#' )
+#' plotCoiNetwork(report)
 #' @export
 plotCoiNetwork <- function(report, ...) {
   g <- coiToGraph(report)

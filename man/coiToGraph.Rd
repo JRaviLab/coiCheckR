@@ -25,3 +25,18 @@ accordingly. Accepts either a single \code{\link[=checkCoi]{checkCoi()}} result 
 list returned by \code{\link[=checkCoiBatch]{checkCoiBatch()}} (its \code{summary} element, if
 present, is ignored).
 }
+\examples{
+report <- structure(
+  list(
+    candidate = "Smith AB",
+    authors = "Lee C",
+    direct = tibble::tibble(
+      candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+    ),
+    second_degree = tibble::tibble(),
+    funding = tibble::tibble()
+  ),
+  class = "coiReport"
+)
+coiToGraph(report)
+}

@@ -23,3 +23,9 @@ co-PIs on the same award. This is a funding-level conflict distinct
 from co-authorship and is easy to miss by literature search alone
 (e.g. a shared MPI grant with no joint publication yet).
 }
+\examples{
+tryCatch(
+  reporterSharedAwards("Smith, Anne", "Lee, Charles", fiscal_years = 2020:2023),
+  error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
+)
+}

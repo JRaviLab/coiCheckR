@@ -18,3 +18,6 @@ The API returns authors as a single string, typically
 \code{"Last F.; Last2 F.M.; ..."}. This splits it into a character vector
 for downstream matching against PubMed-style names.
 }
+\examples{
+biorxivSplitAuthors("Smith A.; Lee C.D.; Doe E.")
+}

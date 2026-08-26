@@ -51,3 +51,9 @@ deliberately does not emit a binary "conflicted / clear" flag, in
 line with journal guidance (e.g. JOSS's COI policy) that COI judgment
 should remain with an editor who can weigh context.
 }
+\examples{
+tryCatch(
+  checkCoi("Smith AB", "Lee C"),
+  error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
+)
+}

@@ -23,6 +23,9 @@
 #' second-degree check).
 #'
 #' @param key Character scalar, your NCBI API key.
+#' @return Invisibly, `TRUE`.
+#' @examples
+#' setNcbiKey("your-ncbi-api-key")
 #' @export
 setNcbiKey <- function(key) {
   rentrez::set_entrez_key(key)

@@ -3,33 +3,36 @@
 # on network access, and the free NCBI rate limit makes CI runs
 # annoyingly slow anyway.
 #
-# Default ground truth is a real, confirmed conflict: package author
-# Janani Ravi ("Ravi J") and her CU Anschutz colleague Arjun Krishnan
-# ("Krishnan A"), who have co-published and hold NIH funding together
-# -- a screen against this pair is expected to flag on all three
-# evidence types. Override via environment variables to use a
-# different known pair, and run locally with:
+# No real names are hardcoded here. To exercise these against a known,
+# real conflict, set environment variables to a candidate/author pair
+# (and NIH PI names) you know to be co-authors with shared funding, and
+# run locally with:
 #   Sys.setenv(
 #     COICHECKR_RUN_LIVE_TESTS = "true",
-#     COICHECKR_TEST_CANDIDATE = "Last FM",       # optional
-#     COICHECKR_TEST_AUTHOR    = "Last FM",       # optional
+#     COICHECKR_TEST_CANDIDATE = "Last FM",
+#     COICHECKR_TEST_AUTHOR    = "Last FM",
 #     COICHECKR_TEST_AFFILIATION = "",            # optional
-#     COICHECKR_TEST_PI = "Last, First",          # optional
-#     COICHECKR_TEST_PI_AUTHOR = "Last, First"    # optional
+#     COICHECKR_TEST_PI = "Last, First",
+#     COICHECKR_TEST_PI_AUTHOR = "Last, First"
 #   )
 #   devtools::test()
+#
+# With the placeholder defaults below (no env vars set), these tests
+# will legitimately find nothing and fail the expect_gt() assertions --
+# that's expected; they exist to be run locally against real names, not
+# as part of CI or Bioconductor's build.
 
 skip_if_not(
   identical(Sys.getenv("COICHECKR_RUN_LIVE_TESTS"), "true"),
   "Set COICHECKR_RUN_LIVE_TESTS=true to run live API tests"
 )
 
-candidate <- Sys.getenv("COICHECKR_TEST_CANDIDATE", unset = "Ravi J")
-author <- Sys.getenv("COICHECKR_TEST_AUTHOR", unset = "Krishnan A")
-affiliation <- Sys.getenv("COICHECKR_TEST_AFFILIATION", unset = "Colorado")
+candidate <- Sys.getenv("COICHECKR_TEST_CANDIDATE", unset = "Smith AB")
+author <- Sys.getenv("COICHECKR_TEST_AUTHOR", unset = "Lee C")
+affiliation <- Sys.getenv("COICHECKR_TEST_AFFILIATION", unset = "")
 if (!nzchar(affiliation)) affiliation <- NULL
-pi_name <- Sys.getenv("COICHECKR_TEST_PI", unset = "Ravi, Janani")
-pi_author <- Sys.getenv("COICHECKR_TEST_PI_AUTHOR", unset = "Krishnan, Arjun")
+pi_name <- Sys.getenv("COICHECKR_TEST_PI", unset = "Smith, Anne")
+pi_author <- Sys.getenv("COICHECKR_TEST_PI_AUTHOR", unset = "Lee, Charles")
 this_year <- as.integer(format(Sys.Date(), "%Y"))
 last_10y <- (this_year - 9):this_year
 

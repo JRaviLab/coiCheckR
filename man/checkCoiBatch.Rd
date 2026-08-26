@@ -21,3 +21,9 @@ a \verb{$summary} tibble (\code{candidate}, \code{n_direct}, \code{n_second_degr
 \description{
 Vectorised convenience wrapper over \code{\link[=checkCoi]{checkCoi()}}.
 }
+\examples{
+tryCatch(
+  checkCoiBatch(c("Smith AB", "Doe C"), "Lee C"),
+  error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
+)
+}

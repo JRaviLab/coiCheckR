@@ -15,6 +15,11 @@
 #'   semicolon-delimited string, as returned by the API), `date`,
 #'   `category`, `published` (linked journal DOI once formally
 #'   published, or `NA`). Returns zero rows if the DOI is not found.
+#' @examples
+#' tryCatch(
+#'   biorxivLookup("10.1101/2020.05.17.095000"),
+#'   error = function(e) message("bioRxiv API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 biorxivLookup <- function(doi, server = c("biorxiv", "medrxiv")) {
   server <- match.arg(server)
@@ -65,6 +70,8 @@ biorxivLookup <- function(doi, server = c("biorxiv", "medrxiv")) {
 #' @param authors_string A single string as returned in
 #'   [biorxivLookup()]'s `authors` column.
 #' @return Character vector of individual author names.
+#' @examples
+#' biorxivSplitAuthors("Smith A.; Lee C.D.; Doe E.")
 #' @export
 biorxivSplitAuthors <- function(authors_string) {
   if (is.na(authors_string) || !nzchar(authors_string)) {

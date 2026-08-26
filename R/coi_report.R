@@ -27,6 +27,11 @@
 #'   `direct`, `second_degree`, `funding`), printable via the package's
 #'   `print.coiReport` method, which gives a one-line summary per
 #'   evidence type.
+#' @examples
+#' tryCatch(
+#'   checkCoi("Smith AB", "Lee C"),
+#'   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 checkCoi <- function(candidate_name,
                      author_names,
@@ -68,7 +73,10 @@ checkCoi <- function(candidate_name,
 
   # --- second-degree ---
   second_degree <- if (check_second_degree) {
-    secondDegreeConflicts(candidate_name, author_names, min_year = min_year)
+    secondDegreeConflicts(
+      candidate_name, author_names,
+      affiliation = affiliation, min_year = min_year
+    )
   } else {
     tibble::tibble()
   }
@@ -128,6 +136,11 @@ print.coiReport <- function(x, ...) {
 #' @return A named list of `coiReport` objects, one per candidate, plus
 #'   a `$summary` tibble (`candidate`, `n_direct`, `n_second_degree`,
 #'   `n_funding`) for quick triage.
+#' @examples
+#' tryCatch(
+#'   checkCoiBatch(c("Smith AB", "Doe C"), "Lee C"),
+#'   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
+#' )
 #' @export
 checkCoiBatch <- function(candidate_names, author_names, ...) {
   reports <- purrr::map(

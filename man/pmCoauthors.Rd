@@ -34,3 +34,9 @@ Tibble as returned by \code{\link[=pmFetchAuthors]{pmFetchAuthors()}}, plus a
 Convenience wrapper combining \code{\link[=pmSearchAuthor]{pmSearchAuthor()}} and
 \code{\link[=pmFetchAuthors]{pmFetchAuthors()}}.
 }
+\examples{
+tryCatch(
+  pmCoauthors("Smith AB"),
+  error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+)
+}

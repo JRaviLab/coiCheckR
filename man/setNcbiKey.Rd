@@ -9,10 +9,16 @@ setNcbiKey(key)
 \arguments{
 \item{key}{Character scalar, your NCBI API key.}
 }
+\value{
+Invisibly, \code{TRUE}.
+}
 \description{
 Thin wrapper around \code{\link[rentrez:set_entrez_key]{rentrez::set_entrez_key()}}; raises the PubMed
 rate limit from 3 to 10 requests/sec, useful when screening several
 candidates against a multi-author paper (this package issues one
 PubMed query per candidate/author name, plus one more per
 second-degree check).
+}
+\examples{
+setNcbiKey("your-ncbi-api-key")
 }

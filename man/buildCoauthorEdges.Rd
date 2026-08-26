@@ -18,3 +18,12 @@ Converts the per-(pmid, author) rows from \code{\link[=pmFetchAuthors]{pmFetchAu
 pairwise co-author edges (every pair of authors sharing a PMID), with
 the query author's own name excluded as a "co-author of themself".
 }
+\examples{
+pm_tbl <- tibble::tibble(
+  pmid = c("1", "1", "2"),
+  year = c(2020L, 2020L, 2021L),
+  author_last = c("Smith", "Lee", "Smith"),
+  author_fore = c("AB", "CD", "AB")
+)
+buildCoauthorEdges(pm_tbl)
+}

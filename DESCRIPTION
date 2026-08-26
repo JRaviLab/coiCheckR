@@ -1,6 +1,6 @@
 Package: coiCheckR
 Title: Screen Peer Reviewer Candidates for Conflicts of Interest
-Version: 0.1.0
+Version: 0.99.0
 Authors@R: person("Janani", "Ravi", email = "janani.ravi@cuanschutz.edu",
     role = c("aut", "cre"))
 Description: Screens candidate peer reviewers (for journal manuscripts or
@@ -36,5 +36,5 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/jravilab/coiCheckR
 BugReports: https://github.com/jravilab/coiCheckR/issues
-biocViews: Software, Visualization, ResearchTools
+biocViews: Software, BiomedicalResearchers, ConflictFinder, Reviewers
 Config/roxygen2/version: 8.0.0

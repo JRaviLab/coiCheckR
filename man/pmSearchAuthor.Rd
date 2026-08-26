@@ -34,3 +34,9 @@ recorded affiliation string, so keep it short (e.g. \code{"Colorado"}
 rather than a full department name) to avoid false negatives from
 formatting drift across papers.
 }
+\examples{
+tryCatch(
+  pmSearchAuthor("Smith AB", affiliation = "State University"),
+  error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
+)
+}

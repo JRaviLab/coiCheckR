@@ -19,3 +19,24 @@ for pasting into an email to an editor -- the kind of summary this
 package's design doc describes as "evidence, not a verdict": each
 line states what was found, not a conflicted/clear judgment.
 }
+\examples{
+batch <- list(
+  `Smith AB` = structure(
+    list(
+      candidate = "Smith AB",
+      authors = "Lee C",
+      direct = tibble::tibble(
+        candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+      ),
+      second_degree = tibble::tibble(),
+      funding = tibble::tibble()
+    ),
+    class = "coiReport"
+  ),
+  summary = tibble::tibble(
+    candidate = "Smith AB",
+    n_direct = 1L, n_second_degree = 0L, n_funding = 0L
+  )
+)
+formatCoiSummary(batch)
+}
