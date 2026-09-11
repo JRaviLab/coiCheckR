@@ -23,10 +23,17 @@
 #' @param funding_fiscal_years Optional integer vector to scope the
 #'   RePORTER query.
 #'
-#' @return An object of class `coiReport` (a list of tibbles:
-#'   `direct`, `second_degree`, `funding`), printable via the package's
-#'   `print.coiReport` method, which gives a one-line summary per
-#'   evidence type.
+#' @return An object of class `coiReport`: a list of tibbles (`direct`,
+#'   `second_degree`, `funding`), plus `status` -- one of
+#'   `"potential_conflict"`, `"no_conflict_detected"`, or
+#'   `"insufficient_evidence"` -- and `sources_failed`, a character
+#'   vector naming any of `"pubmed"`, `"pubmed_second_degree"`,
+#'   `"nih_reporter"` that errored rather than returning zero rows. A
+#'   source failure is never silently treated as "no conflict": if no
+#'   evidence was found *and* a source failed, `status` is
+#'   `"insufficient_evidence"`, not `"no_conflict_detected"`. Printable
+#'   via the package's `print.coiReport` method, which gives a one-line
+#'   summary per evidence type.
 #' @examples
 #' tryCatch(
 #'   checkCoi("Smith AB", "Lee C"),
@@ -49,10 +56,58 @@ checkCoi <- function(candidate_name,
     NULL
   }
 
+  sources_failed <- character()
+
   # --- direct co-authorship ---
+  direct <- .directCoauthorship(candidate_name, author_names, affiliation, min_year)
+  if (.sourceFailed(direct)) sources_failed <- c(sources_failed, "pubmed")
+
+  # --- second-degree ---
+  second_degree <- if (check_second_degree) {
+    sd <- secondDegreeConflicts(
+      candidate_name, author_names,
+      affiliation = affiliation, min_year = min_year
+    )
+    if (.sourceFailed(sd)) sources_failed <- c(sources_failed, "pubmed_second_degree")
+    sd
+  } else {
+    tibble::tibble()
+  }
+
+  # --- shared funding ---
+  funding <- if (check_funding) {
+    f <- reporterSharedAwards(
+      candidate_name, author_names, fiscal_years = funding_fiscal_years
+    )
+    if (.sourceFailed(f)) sources_failed <- c(sources_failed, "nih_reporter")
+    f
+  } else {
+    tibble::tibble()
+  }
+
+  status <- .classifyCoiStatus(direct, second_degree, funding, sources_failed)
+
+  structure(
+    list(
+      candidate = candidate_name,
+      authors = author_names,
+      direct = direct,
+      second_degree = second_degree,
+      funding = funding,
+      status = status,
+      sources_failed = sources_failed
+    ),
+    class = "coiReport"
+  )
+}
+
+# Direct (first-degree) co-authorship between candidate and manuscript authors.
+.directCoauthorship <- function(candidate_name, author_names, affiliation,
+                                min_year) {
   cand_pubs <- pmCoauthors(
     candidate_name, affiliation = affiliation, min_year = min_year
   )
+  failed <- .sourceFailed(cand_pubs)
   cand_edges <- buildCoauthorEdges(cand_pubs) |>
     dplyr::filter(
       .data$from == candidate_name | .data$to == candidate_name
@@ -61,55 +116,35 @@ checkCoi <- function(candidate_name,
       .data$from == candidate_name, .data$to, .data$from
     ))
 
-  direct <- cand_edges |>
+  result <- cand_edges |>
     dplyr::filter(.data$other %in% author_names) |>
     dplyr::transmute(
       candidate = candidate_name,
       author = .data$other,
-      pmid = .data$pmid,
+      PMID = .data$PMID,
       year = .data$year
     ) |>
     dplyr::distinct()
 
-  # --- second-degree ---
-  second_degree <- if (check_second_degree) {
-    secondDegreeConflicts(
-      candidate_name, author_names,
-      affiliation = affiliation, min_year = min_year
-    )
-  } else {
-    tibble::tibble()
-  }
-
-  # --- shared funding ---
-  funding <- if (check_funding) {
-    reporterSharedAwards(
-      candidate_name, author_names, fiscal_years = funding_fiscal_years
-    )
-  } else {
-    tibble::tibble()
-  }
-
-  structure(
-    list(
-      candidate = candidate_name,
-      authors = author_names,
-      direct = direct,
-      second_degree = second_degree,
-      funding = funding
-    ),
-    class = "coiReport"
-  )
+  if (failed) result <- .markSourceFailed(result)
+  result
 }
 
 #' @export
 print.coiReport <- function(x, ...) {
-  cat(sprintf(
-    "COI screen: %s vs. %d author(s)\n", x$candidate, length(x$authors)
+  status <- x$status %||% NA_character_
+  cat(stringr::str_glue(
+    "COI screen: {x$candidate} vs. {length(x$authors)} author(s)\n"
   ))
-  cat(sprintf("  direct co-authorship:    %d hit(s)\n", nrow(x$direct)))
-  cat(sprintf("  second-degree overlap:   %d hit(s)\n", nrow(x$second_degree)))
-  cat(sprintf("  shared NIH awards:       %d hit(s)\n", nrow(x$funding)))
+  cat(stringr::str_glue("  status:                  {status}\n"))
+  cat(stringr::str_glue("  direct co-authorship:    {nrow(x$direct)} hit(s)\n"))
+  cat(stringr::str_glue("  second-degree overlap:   {nrow(x$second_degree)} hit(s)\n"))
+  cat(stringr::str_glue("  shared NIH awards:       {nrow(x$funding)} hit(s)\n"))
+  if (length(x$sources_failed) > 0) {
+    cat(stringr::str_glue(
+      "  ! sources failed (evidence may be incomplete): {stringr::str_c(x$sources_failed, collapse = ', ')}\n"
+    ))
+  }
   if (nrow(x$direct) > 0) {
     cat("\n  -- direct --\n")
     print(x$direct)
@@ -134,8 +169,8 @@ print.coiReport <- function(x, ...) {
 #' @param ... Passed to [checkCoi()].
 #'
 #' @return A named list of `coiReport` objects, one per candidate, plus
-#'   a `$summary` tibble (`candidate`, `n_direct`, `n_second_degree`,
-#'   `n_funding`) for quick triage.
+#'   a `$summary` tibble (`candidate`, `status`, `n_direct`,
+#'   `n_second_degree`, `n_funding`, `sources_failed`) for quick triage.
 #' @examples
 #' tryCatch(
 #'   checkCoiBatch(c("Smith AB", "Doe C"), "Lee C"),
@@ -152,9 +187,11 @@ checkCoiBatch <- function(candidate_names, author_names, ...) {
   summary_tbl <- purrr::map_dfr(reports, function(r) {
     tibble::tibble(
       candidate = r$candidate,
+      status = r$status %||% NA_character_,
       n_direct = nrow(r$direct),
       n_second_degree = nrow(r$second_degree),
-      n_funding = nrow(r$funding)
+      n_funding = nrow(r$funding),
+      sources_failed = stringr::str_c(r$sources_failed, collapse = ", ")
     )
   })
 

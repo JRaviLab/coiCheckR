@@ -1,15 +1,15 @@
 #' Build a co-authorship edge list from a tidy PubMed table
 #'
-#' Converts the per-(pmid, author) rows from [pmFetchAuthors()] into
+#' Converts the per-(PMID, author) rows from [pmFetchAuthors()] into
 #' pairwise co-author edges (every pair of authors sharing a PMID), with
 #' the query author's own name excluded as a "co-author of themself".
 #'
 #' @param pm_tbl Output of [pmFetchAuthors()] or [pmCoauthors()].
-#' @return A tibble edge list: `from`, `to` (both `"Last FM"`), `pmid`,
+#' @return A tibble edge list: `from`, `to` (both `"Last FM"`), `PMID`,
 #'   `year`.
 #' @examples
 #' pm_tbl <- tibble::tibble(
-#'   pmid = c("1", "1", "2"),
+#'   PMID = c("1", "1", "2"),
 #'   year = c(2020L, 2020L, 2021L),
 #'   author_last = c("Smith", "Lee", "Smith"),
 #'   author_fore = c("AB", "CD", "AB")
@@ -19,12 +19,12 @@
 buildCoauthorEdges <- function(pm_tbl) {
   pm_tbl <- pm_tbl |>
     dplyr::filter(!is.na(.data$author_last)) |>
-    dplyr::mutate(author_name = paste(
-      .data$author_last, .pm_normalize_forename(.data$author_fore)
+    dplyr::mutate(author_name = stringr::str_c(
+      .data$author_last, .pm_normalize_forename(.data$author_fore), sep = " "
     ))
 
   pm_tbl |>
-    dplyr::group_by(.data$pmid, .data$year) |>
+    dplyr::group_by(.data$PMID, .data$year) |>
     dplyr::group_modify(function(grp, ...) {
       nms <- grp$author_name
       if (length(nms) < 2) {
@@ -45,20 +45,20 @@ buildCoauthorEdges <- function(pm_tbl) {
 # assume initials, so collapse any full given name to its initials here to
 # keep matching against user-supplied names reliable.
 .pm_normalize_forename <- function(fore) {
-  vapply(fore, function(f) {
+  purrr::map_chr(fore, function(f) {
     if (is.na(f) || !nzchar(f)) {
       return(NA_character_)
     }
-    toks <- strsplit(f, "[[:space:].-]+")[[1]]
+    toks <- stringr::str_split(f, "[[:space:].-]+")[[1]]
     toks <- toks[nzchar(toks)]
     if (length(toks) == 0) {
       return(NA_character_)
     }
-    initials <- vapply(toks, function(t) {
-      if (grepl("^[A-Z]{1,4}$", t)) t else toupper(substr(t, 1, 1))
-    }, character(1))
-    paste0(initials, collapse = "")
-  }, character(1), USE.NAMES = FALSE)
+    initials <- purrr::map_chr(toks, function(t) {
+      if (stringr::str_detect(t, "^[A-Z]{1,4}$")) t else stringr::str_to_upper(stringr::str_sub(t, 1, 1))
+    })
+    stringr::str_c(initials, collapse = "")
+  }) |> unname()
 }
 
 #' Detect second-degree co-authorship conflicts
@@ -87,7 +87,7 @@ buildCoauthorEdges <- function(pm_tbl) {
 #'   co-authorship).
 #'
 #' @return A tibble: `candidate_collaborator`, `linked_author`,
-#'   `n_shared_with_candidate`, `evidence_pmid` (the PMID linking the
+#'   `n_shared_with_candidate`, `evidence_PMID` (the PMID linking the
 #'   collaborator to the author).
 #' @examples
 #' tryCatch(
@@ -101,6 +101,7 @@ secondDegreeConflicts <- function(candidate_name, author_names,
   cand_pubs <- pmCoauthors(
     candidate_name, affiliation = affiliation, min_year = min_year
   )
+  failed <- .sourceFailed(cand_pubs)
   cand_edges <- buildCoauthorEdges(cand_pubs)
 
   cand_collab_counts <- cand_edges |>
@@ -114,14 +115,16 @@ secondDegreeConflicts <- function(candidate_name, author_names,
     dplyr::filter(.data$n_shared_with_candidate >= min_shared_pubs)
 
   if (nrow(cand_collab_counts) == 0) {
-    return(tibble::tibble(
+    empty <- tibble::tibble(
       candidate_collaborator = character(), linked_author = character(),
-      n_shared_with_candidate = integer(), evidence_pmid = character()
-    ))
+      n_shared_with_candidate = integer(), evidence_PMID = character()
+    )
+    return(if (failed) .markSourceFailed(empty) else empty)
   }
 
-  purrr::map_dfr(author_names, function(auth) {
+  result <- purrr::map_dfr(author_names, function(auth) {
     auth_pubs <- pmCoauthors(auth, min_year = min_year)
+    if (.sourceFailed(auth_pubs)) failed <<- TRUE
     auth_edges <- buildCoauthorEdges(auth_pubs) |>
       dplyr::filter(.data$from == auth | .data$to == auth) |>
       dplyr::mutate(other = dplyr::if_else(
@@ -140,7 +143,10 @@ secondDegreeConflicts <- function(candidate_name, author_names,
       candidate_collaborator = hits$collaborator,
       linked_author = auth,
       n_shared_with_candidate = hits$n_shared_with_candidate,
-      evidence_pmid = hits$pmid
+      evidence_PMID = hits$PMID
     )
   })
+
+  if (failed) result <- .markSourceFailed(result)
+  result
 }

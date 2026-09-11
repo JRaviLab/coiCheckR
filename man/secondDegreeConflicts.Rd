@@ -32,7 +32,7 @@ co-authorship).}
 }
 \value{
 A tibble: \code{candidate_collaborator}, \code{linked_author},
-\code{n_shared_with_candidate}, \code{evidence_pmid} (the PMID linking the
+\code{n_shared_with_candidate}, \code{evidence_PMID} (the PMID linking the
 collaborator to the author).
 }
 \description{

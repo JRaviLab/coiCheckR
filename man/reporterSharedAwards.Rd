@@ -7,7 +7,7 @@
 reporterSharedAwards(candidate_name, author_names, fiscal_years = NULL)
 }
 \arguments{
-\item{candidate_name, author_names}{As in \code{\link[=reporterSearchPi]{reporterSearchPi()}}.}
+\item{candidate_name, author_names}{As in \code{\link[=reporterSearchPI]{reporterSearchPI()}}.}
 
 \item{fiscal_years}{Optional integer vector; recommended to match your
 journal's/funder's COI lookback window (NIH study section rules

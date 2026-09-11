@@ -28,9 +28,9 @@ pmSearchAuthor <- function(author,
                            retmax = 300) {
   stopifnot(is.character(author), length(author) == 1)
 
-  term <- sprintf("%s[Author]", author)
+  term <- stringr::str_glue("{author}[Author]")
   if (!is.null(affiliation)) {
-    term <- sprintf("%s AND %s[Affiliation]", term, affiliation)
+    term <- stringr::str_glue("{term} AND {affiliation}[Affiliation]")
   }
   if (!is.null(min_year) || !is.null(max_year)) {
     lo <- if (is.null(min_year)) "1900" else as.character(min_year)
@@ -39,10 +39,21 @@ pmSearchAuthor <- function(author,
     } else {
       as.character(max_year)
     }
-    term <- sprintf("%s AND (%s:%s[pdat])", term, lo, hi)
+    term <- stringr::str_glue("{term} AND ({lo}:{hi}[pdat])")
   }
 
-  res <- rentrez::entrez_search(db = "pubmed", term = term, retmax = retmax)
+  res <- tryCatch(
+    rentrez::entrez_search(db = "pubmed", term = term, retmax = retmax),
+    error = function(e) {
+      warning(stringr::str_glue(
+        "PubMed search failed for author = '{author}': {conditionMessage(e)}"
+      ), call. = FALSE)
+      NULL
+    }
+  )
+  if (is.null(res)) {
+    return(.markSourceFailed(character()))
+  }
   res$ids
 }
 
@@ -53,15 +64,15 @@ pmSearchAuthor <- function(author,
 #' automatically) and parses each record's author list, publication year,
 #' and journal.
 #'
-#' @param pmids Character or integer vector of PMIDs.
+#' @param PMIDs Character or integer vector of PMIDs.
 #' @param batch_size Records per `efetch` call. Default 150 (safely under
 #'   the unauthenticated rate cap; raise if you set an NCBI API key via
 #'   `rentrez::set_entrez_key()`).
 #' @param pause Seconds to sleep between batches, to stay within NCBI's
 #'   rate limits (3 req/sec without a key, 10 req/sec with one).
 #'
-#' @return A [tibble::tibble()] with one row per (pmid, author): columns
-#'   `pmid`, `year`, `journal`, `author_last`, `author_fore`,
+#' @return A [tibble::tibble()] with one row per (PMID, author): columns
+#'   `PMID`, `year`, `journal`, `author_last`, `author_fore`,
 #'   `affiliation`.
 #' @examples
 #' tryCatch(
@@ -72,55 +83,78 @@ pmSearchAuthor <- function(author,
 #'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 #' )
 #' @export
-pmFetchAuthors <- function(pmids, batch_size = 150, pause = 0.4) {
-  pmids <- unique(as.character(pmids))
-  if (length(pmids) == 0) {
-    return(tibble::tibble(
-      pmid = character(), year = integer(), journal = character(),
-      author_last = character(), author_fore = character(),
-      affiliation = character()
-    ))
+pmFetchAuthors <- function(PMIDs, batch_size = 150, pause = 0.4) {
+  PMIDs <- unique(as.character(PMIDs))
+  if (length(PMIDs) == 0) {
+    return(.pmEmptyAuthorsTbl())
   }
 
-  chunks <- split(pmids, ceiling(seq_along(pmids) / batch_size))
+  chunks <- split(PMIDs, ceiling(seq_along(PMIDs) / batch_size))
 
   rows <- purrr::map(chunks, function(ids) {
     Sys.sleep(pause)
-    xml_txt <- rentrez::entrez_fetch(db = "pubmed", id = ids, rettype = "xml")
-    doc <- xml2::read_xml(xml_txt)
-    articles <- xml2::xml_find_all(doc, ".//PubmedArticle")
-
-    purrr::map_dfr(articles, function(art) {
-      pmid <- xml2::xml_text(xml2::xml_find_first(art, ".//PMID"))
-      year <- xml2::xml_text(xml2::xml_find_first(
-        art, ".//PubDate/Year | .//PubDate/MedlineDate"
-      ))
-      year <- suppressWarnings(as.integer(substr(year, 1, 4)))
-      journal <- xml2::xml_text(xml2::xml_find_first(art, ".//Journal/Title"))
-
-      auths <- xml2::xml_find_all(art, ".//AuthorList/Author")
-      if (length(auths) == 0) {
-        return(tibble::tibble(
-          pmid = pmid, year = year, journal = journal,
-          author_last = NA_character_, author_fore = NA_character_,
-          affiliation = NA_character_
-        ))
+    tryCatch(
+      {
+        xml_txt <- rentrez::entrez_fetch(db = "pubmed", id = ids, rettype = "xml")
+        doc <- xml2::read_xml(xml_txt)
+        articles <- xml2::xml_find_all(doc, ".//PubmedArticle")
+        .pmParseArticles(articles)
+      },
+      error = function(e) {
+        warning(stringr::str_glue(
+          "PubMed fetch failed for a batch of {length(ids)} PMID(s): {conditionMessage(e)}"
+        ), call. = FALSE)
+        NULL
       }
-
-      purrr::map_dfr(auths, function(a) {
-        tibble::tibble(
-          pmid = pmid, year = year, journal = journal,
-          author_last = xml2::xml_text(xml2::xml_find_first(a, ".//LastName")),
-          author_fore = xml2::xml_text(xml2::xml_find_first(a, ".//ForeName")),
-          affiliation = xml2::xml_text(xml2::xml_find_first(
-            a, ".//AffiliationInfo/Affiliation"
-          ))
-        )
-      })
-    })
+    )
   })
 
-  dplyr::bind_rows(rows)
+  is_failed_chunk <- purrr::map_lgl(rows, is.null)
+  failed <- any(is_failed_chunk)
+  rows <- rows[!is_failed_chunk]
+  out <- if (length(rows) == 0) .pmEmptyAuthorsTbl() else dplyr::bind_rows(rows)
+  if (failed) out <- .markSourceFailed(out)
+  out
+}
+
+.pmEmptyAuthorsTbl <- function() {
+  tibble::tibble(
+    PMID = character(), year = integer(), journal = character(),
+    author_last = character(), author_fore = character(),
+    affiliation = character()
+  )
+}
+
+.pmParseArticles <- function(articles) {
+  purrr::map_dfr(articles, function(art) {
+    PMID <- xml2::xml_text(xml2::xml_find_first(art, ".//PMID"))
+    year <- xml2::xml_text(xml2::xml_find_first(
+      art, ".//PubDate/Year | .//PubDate/MedlineDate"
+    ))
+    year_str <- stringr::str_sub(year, 1, 4)
+    year <- if (stringr::str_detect(year_str, "^[0-9]{4}$")) as.integer(year_str) else NA_integer_
+    journal <- xml2::xml_text(xml2::xml_find_first(art, ".//Journal/Title"))
+
+    auths <- xml2::xml_find_all(art, ".//AuthorList/Author")
+    if (length(auths) == 0) {
+      return(tibble::tibble(
+        PMID = PMID, year = year, journal = journal,
+        author_last = NA_character_, author_fore = NA_character_,
+        affiliation = NA_character_
+      ))
+    }
+
+    purrr::map_dfr(auths, function(a) {
+      tibble::tibble(
+        PMID = PMID, year = year, journal = journal,
+        author_last = xml2::xml_text(xml2::xml_find_first(a, ".//LastName")),
+        author_fore = xml2::xml_text(xml2::xml_find_first(a, ".//ForeName")),
+        affiliation = xml2::xml_text(xml2::xml_find_first(
+          a, ".//AffiliationInfo/Affiliation"
+        ))
+      )
+    })
+  })
 }
 
 #' Get a tidy co-authorship table for one author
@@ -141,8 +175,11 @@ pmFetchAuthors <- function(pmids, batch_size = 150, pause = 0.4) {
 #' @export
 pmCoauthors <- function(author, affiliation = NULL, min_year = NULL,
                         max_year = NULL, retmax = 300, ...) {
-  pmids <- pmSearchAuthor(author, affiliation, min_year, max_year, retmax)
-  out <- pmFetchAuthors(pmids, ...)
+  PMIDs <- pmSearchAuthor(author, affiliation, min_year, max_year, retmax)
+  search_failed <- .sourceFailed(PMIDs)
+  out <- pmFetchAuthors(PMIDs, ...)
+  fetch_failed <- .sourceFailed(out)
   out$query_author <- author
+  if (search_failed || fetch_failed) out <- .markSourceFailed(out)
   out
 }

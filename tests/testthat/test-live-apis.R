@@ -31,8 +31,8 @@ candidate <- Sys.getenv("COICHECKR_TEST_CANDIDATE", unset = "Smith AB")
 author <- Sys.getenv("COICHECKR_TEST_AUTHOR", unset = "Lee C")
 affiliation <- Sys.getenv("COICHECKR_TEST_AFFILIATION", unset = "")
 if (!nzchar(affiliation)) affiliation <- NULL
-pi_name <- Sys.getenv("COICHECKR_TEST_PI", unset = "Smith, Anne")
-pi_author <- Sys.getenv("COICHECKR_TEST_PI_AUTHOR", unset = "Lee, Charles")
+PI_name <- Sys.getenv("COICHECKR_TEST_PI", unset = "Smith, Anne")
+PI_author <- Sys.getenv("COICHECKR_TEST_PI_AUTHOR", unset = "Lee, Charles")
 this_year <- as.integer(format(Sys.Date(), "%Y"))
 last_10y <- (this_year - 9):this_year
 
@@ -57,14 +57,14 @@ test_that("checkCoi flags a known candidate-author conflict on all 3 axes", {
   expect_gt(nrow(report$funding), 0)
 })
 
-test_that("reporterSearchPi returns awards for a known NIH-funded PI", {
+test_that("reporterSearchPI returns awards for a known NIH-funded PI", {
   skip_if_offline()
-  awards <- reporterSearchPi(pi_name, fiscal_years = last_10y)
+  awards <- reporterSearchPI(PI_name, fiscal_years = last_10y)
   expect_gt(nrow(awards), 0)
 })
 
 test_that("reporterSharedAwards finds the known shared NIH award", {
   skip_if_offline()
-  shared <- reporterSharedAwards(pi_name, pi_author, fiscal_years = last_10y)
+  shared <- reporterSharedAwards(PI_name, PI_author, fiscal_years = last_10y)
   expect_gt(nrow(shared), 0)
 })

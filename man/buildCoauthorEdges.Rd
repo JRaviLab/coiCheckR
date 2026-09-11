@@ -10,17 +10,17 @@ buildCoauthorEdges(pm_tbl)
 \item{pm_tbl}{Output of \code{\link[=pmFetchAuthors]{pmFetchAuthors()}} or \code{\link[=pmCoauthors]{pmCoauthors()}}.}
 }
 \value{
-A tibble edge list: \code{from}, \code{to} (both \code{"Last FM"}), \code{pmid},
+A tibble edge list: \code{from}, \code{to} (both \code{"Last FM"}), \code{PMID},
 \code{year}.
 }
 \description{
-Converts the per-(pmid, author) rows from \code{\link[=pmFetchAuthors]{pmFetchAuthors()}} into
+Converts the per-(PMID, author) rows from \code{\link[=pmFetchAuthors]{pmFetchAuthors()}} into
 pairwise co-author edges (every pair of authors sharing a PMID), with
 the query author's own name excluded as a "co-author of themself".
 }
 \examples{
 pm_tbl <- tibble::tibble(
-  pmid = c("1", "1", "2"),
+  PMID = c("1", "1", "2"),
   year = c(2020L, 2020L, 2021L),
   author_last = c("Smith", "Lee", "Smith"),
   author_fore = c("AB", "CD", "AB")

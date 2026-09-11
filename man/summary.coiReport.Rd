@@ -14,7 +14,12 @@
 \value{
 A tibble, one row per evidence type present (\code{relation},
 \code{n}, \code{parties} -- a comma-joined list of the authors involved),
-zero rows if no conflicts were found.
+zero rows if no conflicts were found and every source ran
+successfully. If any evidence source errored (see \code{sources_failed}
+in \code{\link[=checkCoi]{checkCoi()}}'s return value), an additional
+\code{relation = "sources_failed"} row is included -- a zero-row result
+means the search actually completed with nothing found, not that
+part of it silently failed to run.
 }
 \description{
 Tidy summary of a single COI report
@@ -25,7 +30,7 @@ report <- structure(
     candidate = "Smith AB",
     authors = "Lee C",
     direct = tibble::tibble(
-      candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+      candidate = "Smith AB", author = "Lee C", PMID = "1", year = 2020L
     ),
     second_degree = tibble::tibble(),
     funding = tibble::tibble()

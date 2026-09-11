@@ -4,10 +4,10 @@
 \alias{pmFetchAuthors}
 \title{Fetch author lists and metadata for a set of PMIDs}
 \usage{
-pmFetchAuthors(pmids, batch_size = 150, pause = 0.4)
+pmFetchAuthors(PMIDs, batch_size = 150, pause = 0.4)
 }
 \arguments{
-\item{pmids}{Character or integer vector of PMIDs.}
+\item{PMIDs}{Character or integer vector of PMIDs.}
 
 \item{batch_size}{Records per \code{efetch} call. Default 150 (safely under
 the unauthenticated rate cap; raise if you set an NCBI API key via
@@ -17,8 +17,8 @@ the unauthenticated rate cap; raise if you set an NCBI API key via
 rate limits (3 req/sec without a key, 10 req/sec with one).}
 }
 \value{
-A \code{\link[tibble:tibble]{tibble::tibble()}} with one row per (pmid, author): columns
-\code{pmid}, \code{year}, \code{journal}, \code{author_last}, \code{author_fore},
+A \code{\link[tibble:tibble]{tibble::tibble()}} with one row per (PMID, author): columns
+\code{PMID}, \code{year}, \code{journal}, \code{author_last}, \code{author_fore},
 \code{affiliation}.
 }
 \description{

@@ -13,8 +13,11 @@ export(plotCoiNetwork)
 export(pmCoauthors)
 export(pmFetchAuthors)
 export(pmSearchAuthor)
-export(reporterSearchPi)
+export(reporterSearchPI)
 export(reporterSharedAwards)
 export(secondDegreeConflicts)
-export(setNcbiKey)
-importFrom(rlang,.data)
+export(setNCBIKey)
+importFrom(rlang,
+  "%||%",
+  .data
+)

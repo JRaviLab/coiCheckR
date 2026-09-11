@@ -2,7 +2,7 @@ Package: coiCheckR
 Title: Screen Peer Reviewer Candidates for Conflicts of Interest
 Version: 0.99.0
 Authors@R: person("Janani", "Ravi", email = "janani.ravi@cuanschutz.edu",
-    role = c("aut", "cre"))
+    role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7443-925X"))
 Description: Screens candidate peer reviewers (for journal manuscripts or
     grant applications) against a manuscript's author list for conflicts
     of interest. Builds co-authorship evidence from PubMed/PMC via
@@ -25,10 +25,11 @@ Imports:
     tibble,
     dplyr,
     purrr,
+    stringr,
     rlang,
     igraph
 Suggests:
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.10),
     knitr,
     rmarkdown,
     withr
@@ -36,5 +37,5 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/jravilab/coiCheckR
 BugReports: https://github.com/jravilab/coiCheckR/issues
-biocViews: Software, BiomedicalResearchers, ConflictFinder, Reviewers
-Config/roxygen2/version: 8.0.0
+biocViews: Software, BiomedicalInformatics, ReportWriting, Visualization
+Config/roxygen2/version: 8.1.0

@@ -38,10 +38,17 @@ screening.}
 RePORTER query.}
 }
 \value{
-An object of class \code{coiReport} (a list of tibbles:
-\code{direct}, \code{second_degree}, \code{funding}), printable via the package's
-\code{print.coiReport} method, which gives a one-line summary per
-evidence type.
+An object of class \code{coiReport}: a list of tibbles (\code{direct},
+\code{second_degree}, \code{funding}), plus \code{status} -- one of
+\code{"potential_conflict"}, \code{"no_conflict_detected"}, or
+\code{"insufficient_evidence"} -- and \code{sources_failed}, a character
+vector naming any of \code{"pubmed"}, \code{"pubmed_second_degree"},
+\code{"nih_reporter"} that errored rather than returning zero rows. A
+source failure is never silently treated as "no conflict": if no
+evidence was found \emph{and} a source failed, \code{status} is
+\code{"insufficient_evidence"}, not \code{"no_conflict_detected"}. Printable
+via the package's \code{print.coiReport} method, which gives a one-line
+summary per evidence type.
 }
 \description{
 The main entry point. Combines direct co-authorship (PubMed),

@@ -11,7 +11,10 @@ formatCoiSummary(batch)
 }
 \value{
 A character vector, one line per candidate, e.g.
-\code{"Smith AB -- 1 direct (Lee C), 0 second-degree, 0 funding"}.
+\code{"Smith AB -- 1 direct (Lee C), 0 second-degree, 0 funding [potential_conflict]"}.
+A line ends with \code{"(sources failed: ...)"} if any evidence source
+errored, since that's when a candidate could look clear only
+because part of the search didn't run.
 }
 \description{
 Turns \code{\link[=checkCoiBatch]{checkCoiBatch()}}'s output into plain-text lines suitable
@@ -26,7 +29,7 @@ batch <- list(
       candidate = "Smith AB",
       authors = "Lee C",
       direct = tibble::tibble(
-        candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+        candidate = "Smith AB", author = "Lee C", PMID = "1", year = 2020L
       ),
       second_degree = tibble::tibble(),
       funding = tibble::tibble()

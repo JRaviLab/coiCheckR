@@ -15,7 +15,7 @@ a shortlist.
 PubMed E-utilities allow 3 requests/sec without a key, 10/sec with
 one. If you're screening more than a handful of names, get a free key
 at \url{https://www.ncbi.nlm.nih.gov/account/settings/} and call
-\code{\link[=setNcbiKey]{setNcbiKey()}} once per session.
+\code{\link[=setNCBIKey]{setNCBIKey()}} once per session.
 }
 
 \seealso{
@@ -27,11 +27,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Janani Ravi \email{janani.ravi@cuanschutz.edu}
+\strong{Maintainer}: Janani Ravi \email{janani.ravi@cuanschutz.edu} (\href{https://orcid.org/0000-0001-7443-925X}{ORCID})
 
 Authors:
 \itemize{
-  \item Janani Ravi \email{janani.ravi@cuanschutz.edu}
+  \item Janani Ravi \email{janani.ravi@cuanschutz.edu} (\href{https://orcid.org/0000-0001-7443-925X}{ORCID})
 }
 
 }

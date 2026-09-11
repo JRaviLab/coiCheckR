@@ -15,8 +15,8 @@ checkCoiBatch(candidate_names, author_names, ...)
 }
 \value{
 A named list of \code{coiReport} objects, one per candidate, plus
-a \verb{$summary} tibble (\code{candidate}, \code{n_direct}, \code{n_second_degree},
-\code{n_funding}) for quick triage.
+a \verb{$summary} tibble (\code{candidate}, \code{status}, \code{n_direct},
+\code{n_second_degree}, \code{n_funding}, \code{sources_failed}) for quick triage.
 }
 \description{
 Vectorised convenience wrapper over \code{\link[=checkCoi]{checkCoi()}}.

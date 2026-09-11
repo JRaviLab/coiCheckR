@@ -4,15 +4,15 @@
 \alias{biorxivLookup}
 \title{Look up a bioRxiv (or medRxiv) preprint's author list by DOI}
 \usage{
-biorxivLookup(doi, server = c("biorxiv", "medrxiv"))
+biorxivLookup(DOI, server = c("biorxiv", "medrxiv"))
 }
 \arguments{
-\item{doi}{Character scalar, e.g. \code{"10.1101/2020.05.17.095000"}.}
+\item{DOI}{Character scalar, e.g. \code{"10.1101/2020.05.17.095000"}.}
 
 \item{server}{One of \code{"biorxiv"} or \code{"medrxiv"}.}
 }
 \value{
-A one-row tibble with \code{doi}, \code{title}, \code{authors} (single
+A one-row tibble with \code{DOI}, \code{title}, \code{authors} (single
 semicolon-delimited string, as returned by the API), \code{date},
 \code{category}, \code{published} (linked journal DOI once formally
 published, or \code{NA}). Returns zero rows if the DOI is not found.

@@ -8,10 +8,10 @@
 #' PubMed E-utilities allow 3 requests/sec without a key, 10/sec with
 #' one. If you're screening more than a handful of names, get a free key
 #' at <https://www.ncbi.nlm.nih.gov/account/settings/> and call
-#' [setNcbiKey()] once per session.
+#' [setNCBIKey()] once per session.
 #'
 #' @keywords internal
-#' @importFrom rlang .data
+#' @importFrom rlang .data %||%
 "_PACKAGE"
 
 #' Set your NCBI API key for the session
@@ -25,9 +25,9 @@
 #' @param key Character scalar, your NCBI API key.
 #' @return Invisibly, `TRUE`.
 #' @examples
-#' setNcbiKey("your-ncbi-api-key")
+#' setNCBIKey("your-ncbi-api-key")
 #' @export
-setNcbiKey <- function(key) {
+setNCBIKey <- function(key) {
   rentrez::set_entrez_key(key)
   invisible(TRUE)
 }

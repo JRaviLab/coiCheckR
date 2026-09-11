@@ -6,11 +6,11 @@
       authors = character(),
       direct = direct %||% tibble::tibble(
         candidate = character(), author = character(),
-        pmid = character(), year = integer()
+        PMID = character(), year = integer()
       ),
       second_degree = second_degree %||% tibble::tibble(
         candidate_collaborator = character(), linked_author = character(),
-        n_shared_with_candidate = integer(), evidence_pmid = character()
+        n_shared_with_candidate = integer(), evidence_PMID = character()
       ),
       funding = funding %||% tibble::tibble(
         project_num = character(), queried_author = character()
@@ -20,14 +20,12 @@
   )
 }
 
-`%||%` <- function(x, y) if (is.null(x)) y else x
-
 test_that("summary.coiReport returns one row per non-empty evidence type", {
   r <- .fake_report(
     "Smith AB",
     direct = tibble::tibble(
       candidate = "Smith AB", author = "Lee C",
-      pmid = "123", year = 2020L
+      PMID = "123", year = 2020L
     )
   )
   s <- summary(r)
@@ -48,7 +46,7 @@ test_that("formatCoiSummary produces one line per candidate", {
       "Smith AB",
       direct = tibble::tibble(
         candidate = "Smith AB", author = "Lee C",
-        pmid = "123", year = 2020L
+        PMID = "123", year = 2020L
       )
     ),
     "Park DE" = .fake_report("Park DE"),
@@ -70,7 +68,7 @@ test_that("coiToGraph builds an igraph with expected node/edge counts", {
     "Smith AB",
     direct = tibble::tibble(
       candidate = "Smith AB", author = "Lee C",
-      pmid = "123", year = 2020L
+      PMID = "123", year = 2020L
     )
   )
   g <- coiToGraph(r)

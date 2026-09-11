@@ -20,7 +20,7 @@
 #'     candidate = "Smith AB",
 #'     authors = "Lee C",
 #'     direct = tibble::tibble(
-#'       candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'       candidate = "Smith AB", author = "Lee C", PMID = "1", year = 2020L
 #'     ),
 #'     second_degree = tibble::tibble(),
 #'     funding = tibble::tibble()
@@ -31,7 +31,7 @@
 #' @export
 coiToGraph <- function(report) {
   reports <- if (inherits(report, "coiReport")) list(report) else report
-  reports <- reports[vapply(reports, inherits, logical(1), "coiReport")]
+  reports <- reports[purrr::map_lgl(reports, inherits, "coiReport")]
   if (length(reports) == 0) stop("No coiReport objects found in `report`.")
 
   edges <- purrr::map_dfr(reports, function(r) {
@@ -39,7 +39,7 @@ coiToGraph <- function(report) {
       if (nrow(r$direct) > 0) {
         tibble::tibble(
           from = r$candidate, to = r$direct$author,
-          relation = "direct", evidence = r$direct$pmid
+          relation = "direct", evidence = r$direct$PMID
         )
       },
       if (nrow(r$second_degree) > 0) {
@@ -95,7 +95,7 @@ coiToGraph <- function(report) {
 #'     candidate = "Smith AB",
 #'     authors = "Lee C",
 #'     direct = tibble::tibble(
-#'       candidate = "Smith AB", author = "Lee C", pmid = "1", year = 2020L
+#'       candidate = "Smith AB", author = "Lee C", PMID = "1", year = 2020L
 #'     ),
 #'     second_degree = tibble::tibble(),
 #'     funding = tibble::tibble()
@@ -121,7 +121,7 @@ plotCoiNetwork <- function(report, ...) {
     edge.arrow.size = 0.4,
     vertex.label.cex = 0.8,
     vertex.size = 20,
-    main = paste0(
+    main = stringr::str_c(
       "Candidate-author conflict network\n",
       "(red = direct, gold = 2nd-degree, blue = funding)"
     ),
