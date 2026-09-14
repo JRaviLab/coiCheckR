@@ -22,8 +22,12 @@ a \verb{$summary} tibble (\code{candidate}, \code{status}, \code{n_direct},
 Vectorised convenience wrapper over \code{\link[=checkCoi]{checkCoi()}}.
 }
 \examples{
+\donttest{
+# Live PubMed/RePORTER calls (multiplied across every candidate) --
+# \donttest for the same reason as checkCoi()'s example.
 tryCatch(
   checkCoiBatch(c("Smith AB", "Doe C"), "Lee C"),
   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
 )
+}
 }

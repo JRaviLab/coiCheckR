@@ -8,18 +8,38 @@
 #' formatting drift across papers.
 #'
 #' @param author Character scalar, `"Last FM"` format (PubMed convention),
-#'   e.g. `"Smith AB"`.
-#' @param affiliation Optional character scalar to narrow by affiliation
-#'   substring. Recommended when the surname is common.
+#'   e.g. `"Smith AB"`. A full forename (e.g. `"Smith Alice"`) is also
+#'   accepted and often narrows results *better* than initials for a
+#'   common surname -- PubMed's `[Author]` field search is not sensitive
+#'   to whether the forename is spelled out or abbreviated.
+#' @param affiliation Optional character scalar, or vector, to narrow by
+#'   affiliation substring (OR-combined *across* vector elements when
+#'   more than one is given). Recommended when the surname is common. A
+#'   single affiliation string only matches papers published while at
+#'   that institution -- someone with a multi-institution career needs
+#'   each affiliation listed as a separate vector element (e.g.
+#'   `c("Colorado", "Michigan", "Rutgers")`) to avoid silently dropping
+#'   earlier-career publications. *Within* one element, though, multiple
+#'   words are matched as a phrase, not OR'd word-by-word -- prefer a
+#'   single short, distinctive word (e.g. `"Colorado"`) per institution
+#'   over its full official name, since a full name has to match
+#'   whatever exact phrasing that specific paper happened to record
+#'   (department, campus, etc.), which varies paper to paper, whereas a
+#'   short word is robust to that variation.
 #' @param min_year,max_year Optional integer bounds on publication year.
 #' @param retmax Maximum records to retrieve. Default 300.
 #'
 #' @return Character vector of PMIDs (possibly empty).
 #' @examples
+#' \donttest{
+#' # Live PubMed call -- \donttest since "Smith AB" is common enough
+#' # that this can be slow (many real, unrelated hits) and isn't run
+#' # by default during R CMD check or routine CRAN/Bioconductor checks.
 #' tryCatch(
 #'   pmSearchAuthor("Smith AB", affiliation = "State University"),
 #'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 pmSearchAuthor <- function(author,
                            affiliation = NULL,
@@ -30,7 +50,11 @@ pmSearchAuthor <- function(author,
 
   term <- stringr::str_glue("{author}[Author]")
   if (!is.null(affiliation)) {
-    term <- stringr::str_glue("{term} AND {affiliation}[Affiliation]")
+    aff_clause <- stringr::str_c(
+      stringr::str_c(affiliation, "[Affiliation]"),
+      collapse = " OR "
+    )
+    term <- stringr::str_glue("{term} AND ({aff_clause})")
   }
   if (!is.null(min_year) || !is.null(max_year)) {
     lo <- if (is.null(min_year)) "1900" else as.character(min_year)
@@ -75,6 +99,9 @@ pmSearchAuthor <- function(author,
 #'   `PMID`, `year`, `journal`, `author_last`, `author_fore`,
 #'   `affiliation`.
 #' @examples
+#' \donttest{
+#' # Live PubMed calls -- \donttest for the same reason as
+#' # pmSearchAuthor()'s example.
 #' tryCatch(
 #'   {
 #'     ids <- pmSearchAuthor("Smith AB")
@@ -82,6 +109,7 @@ pmSearchAuthor <- function(author,
 #'   },
 #'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 pmFetchAuthors <- function(PMIDs, batch_size = 150, pause = 0.4) {
   PMIDs <- unique(as.character(PMIDs))
@@ -168,10 +196,14 @@ pmFetchAuthors <- function(PMIDs, batch_size = 150, pause = 0.4) {
 #' @return Tibble as returned by [pmFetchAuthors()], plus a
 #'   `query_author` column identifying whose search produced each row.
 #' @examples
+#' \donttest{
+#' # Live PubMed calls -- \donttest since "Smith AB" fetches every
+#' # matching record's full XML, which can be slow for a common name.
 #' tryCatch(
 #'   pmCoauthors("Smith AB"),
 #'   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 pmCoauthors <- function(author, affiliation = NULL, min_year = NULL,
                         max_year = NULL, retmax = 300, ...) {
@@ -179,7 +211,7 @@ pmCoauthors <- function(author, affiliation = NULL, min_year = NULL,
   search_failed <- .sourceFailed(PMIDs)
   out <- pmFetchAuthors(PMIDs, ...)
   fetch_failed <- .sourceFailed(out)
-  out$query_author <- author
+  out <- dplyr::mutate(out, query_author = author)
   if (search_failed || fetch_failed) out <- .markSourceFailed(out)
   out
 }

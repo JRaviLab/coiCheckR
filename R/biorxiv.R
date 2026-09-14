@@ -16,10 +16,14 @@
 #'   `category`, `published` (linked journal DOI once formally
 #'   published, or `NA`). Returns zero rows if the DOI is not found.
 #' @examples
+#' \donttest{
+#' # Live bioRxiv call -- \donttest since CRAN/Bioconductor checks
+#' # shouldn't depend on an external service being reachable.
 #' tryCatch(
 #'   biorxivLookup("10.1101/2020.05.17.095000"),
 #'   error = function(e) message("bioRxiv API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 biorxivLookup <- function(DOI, server = c("biorxiv", "medrxiv")) {
   server <- rlang::arg_match(server)

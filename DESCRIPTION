@@ -32,10 +32,11 @@ Suggests:
     testthat (>= 3.1.10),
     knitr,
     rmarkdown,
+    pkgdown,
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://github.com/jravilab/coiCheckR
-BugReports: https://github.com/jravilab/coiCheckR/issues
+URL: https://github.com/JRaviLab/coiCheckR, https://jravilab.github.io/coiCheckR/
+BugReports: https://github.com/JRaviLab/coiCheckR/issues
 biocViews: Software, BiomedicalInformatics, ReportWriting, Visualization
 Config/roxygen2/version: 8.1.0

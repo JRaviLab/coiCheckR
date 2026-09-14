@@ -19,21 +19,32 @@
 #' @param fiscal_years Optional integer vector of fiscal years to
 #'   restrict the search (recommended -- an unrestricted query against a
 #'   common surname can return hundreds of unrelated projects).
+#' @param org_names Optional character vector of organization-name
+#'   substrings to further restrict the search (RePORTER's own
+#'   `org_names` criterion). Like `fiscal_years`, this narrows an
+#'   otherwise broad query against a common name -- but note it only
+#'   matches the organization on record for that award, so someone with
+#'   awards across multiple institutions over their career needs each
+#'   one listed to avoid silently dropping earlier awards.
 #' @param limit Max records per page (API caps at 500).
 #'
 #' @return A tibble with one row per project: `project_num`,
 #'   `fiscal_year`, `org_name`, `project_title`, `contact_PI`,
 #'   `all_PIs` (a list-column of every PI/co-PI name on that award).
 #' @examples
+#' \donttest{
+#' # Live NIH RePORTER call -- \donttest since it isn't run by default
+#' # during R CMD check or routine CRAN/Bioconductor checks.
 #' tryCatch(
 #'   reporterSearchPI("Smith, Anne", fiscal_years = 2020:2023),
 #'   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
-reporterSearchPI <- function(PI_name, fiscal_years = NULL, limit = 500) {
+reporterSearchPI <- function(PI_name, fiscal_years = NULL, org_names = NULL, limit = 500) {
   stopifnot(is.character(PI_name), length(PI_name) == 1)
 
-  body <- .reporterRequestBody(PI_name, fiscal_years, limit)
+  body <- .reporterRequestBody(PI_name, fiscal_years, limit, org_names)
 
   resp <- tryCatch(
     httr2::request("https://api.reporter.nih.gov/v2/projects/search") |>
@@ -78,10 +89,13 @@ reporterSearchPI <- function(PI_name, fiscal_years = NULL, limit = 500) {
   }
 }
 
-.reporterRequestBody <- function(PI_name, fiscal_years, limit) {
+.reporterRequestBody <- function(PI_name, fiscal_years, limit, org_names = NULL) {
   criteria <- list(pi_names = list(.PI_name_query(PI_name)))
   if (!is.null(fiscal_years)) {
     criteria$fiscal_years <- as.list(as.integer(fiscal_years))
+  }
+  if (!is.null(org_names)) {
+    criteria$org_names <- as.list(org_names)
   }
   list(
     criteria = criteria,
@@ -130,27 +144,51 @@ reporterSearchPI <- function(PI_name, fiscal_years = NULL, limit = 500) {
 #' @param fiscal_years Optional integer vector; recommended to match your
 #'   journal's/funder's COI lookback window (NIH study section rules
 #'   typically use a 3-year window).
+#' @param candidate_org_names,author_org_names Optional [reporterSearchPI()]
+#'   `org_names` filter for the candidate and for the authors,
+#'   respectively. `author_org_names` follows the same shape rules as
+#'   [secondDegreeConflicts()]'s `author_affiliations`: `NULL` (no
+#'   filtering), a plain vector applied to every author, or a list the
+#'   same length as `author_names` for per-author values.
 #'
 #' @return A tibble of shared awards, or zero rows if none found.
 #' @examples
+#' \donttest{
+#' # Live NIH RePORTER calls -- \donttest for the same reason as
+#' # reporterSearchPI()'s example.
 #' tryCatch(
 #'   reporterSharedAwards("Smith, Anne", "Lee, Charles", fiscal_years = 2020:2023),
 #'   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 reporterSharedAwards <- function(candidate_name, author_names,
-                                 fiscal_years = NULL) {
-  cand <- reporterSearchPI(candidate_name, fiscal_years)
+                                 fiscal_years = NULL,
+                                 candidate_org_names = NULL,
+                                 author_org_names = NULL) {
+  if (is.list(author_org_names) &&
+      length(author_org_names) != length(author_names)) {
+    stop("When `author_org_names` is a list, it must have one element per `author_names`.")
+  }
+  author_org_list <- if (is.null(author_org_names)) {
+    vector("list", length(author_names))
+  } else if (is.list(author_org_names)) {
+    author_org_names
+  } else {
+    rep(list(author_org_names), length(author_names))
+  }
+
+  cand <- reporterSearchPI(candidate_name, fiscal_years, org_names = candidate_org_names)
   cand_failed <- .sourceFailed(cand)
   if (nrow(cand) == 0) {
     return(if (cand_failed) .markSourceFailed(cand[0, ]) else cand[0, ])
   }
 
   auth_failed <- FALSE
-  auth <- purrr::map_dfr(author_names, function(nm) {
-    df <- reporterSearchPI(nm, fiscal_years)
+  auth <- purrr::map2_dfr(author_names, author_org_list, function(nm, org) {
+    df <- reporterSearchPI(nm, fiscal_years, org_names = org)
     if (.sourceFailed(df)) auth_failed <<- TRUE
-    if (nrow(df) > 0) df$queried_author <- nm
+    if (nrow(df) > 0) df <- dplyr::mutate(df, queried_author = nm)
     df
   })
   if (nrow(auth) == 0) {

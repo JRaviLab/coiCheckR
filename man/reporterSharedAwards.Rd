@@ -4,7 +4,13 @@
 \alias{reporterSharedAwards}
 \title{Find NIH awards shared between a candidate and a set of authors}
 \usage{
-reporterSharedAwards(candidate_name, author_names, fiscal_years = NULL)
+reporterSharedAwards(
+  candidate_name,
+  author_names,
+  fiscal_years = NULL,
+  candidate_org_names = NULL,
+  author_org_names = NULL
+)
 }
 \arguments{
 \item{candidate_name, author_names}{As in \code{\link[=reporterSearchPI]{reporterSearchPI()}}.}
@@ -12,6 +18,13 @@ reporterSharedAwards(candidate_name, author_names, fiscal_years = NULL)
 \item{fiscal_years}{Optional integer vector; recommended to match your
 journal's/funder's COI lookback window (NIH study section rules
 typically use a 3-year window).}
+
+\item{candidate_org_names, author_org_names}{Optional \code{\link[=reporterSearchPI]{reporterSearchPI()}}
+\code{org_names} filter for the candidate and for the authors,
+respectively. \code{author_org_names} follows the same shape rules as
+\code{\link[=secondDegreeConflicts]{secondDegreeConflicts()}}'s \code{author_affiliations}: \code{NULL} (no
+filtering), a plain vector applied to every author, or a list the
+same length as \code{author_names} for per-author values.}
 }
 \value{
 A tibble of shared awards, or zero rows if none found.
@@ -24,8 +37,12 @@ from co-authorship and is easy to miss by literature search alone
 (e.g. a shared MPI grant with no joint publication yet).
 }
 \examples{
+\donttest{
+# Live NIH RePORTER calls -- \donttest for the same reason as
+# reporterSearchPI()'s example.
 tryCatch(
   reporterSharedAwards("Smith, Anne", "Lee, Charles", fiscal_years = 2020:2023),
   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
 )
+}
 }

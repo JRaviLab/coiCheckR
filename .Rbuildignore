@@ -3,3 +3,10 @@
 ^README\.Rmd$
 ^\.github$
 ^LICENSE\.md$
+^doc$
+^Meta$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^vignettes/.*\.Rmd\.orig$
+^vignettes/precompile\.R$

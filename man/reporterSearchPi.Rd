@@ -4,7 +4,7 @@
 \alias{reporterSearchPI}
 \title{Search NIH RePORTER for a principal investigator's awards}
 \usage{
-reporterSearchPI(PI_name, fiscal_years = NULL, limit = 500)
+reporterSearchPI(PI_name, fiscal_years = NULL, org_names = NULL, limit = 500)
 }
 \arguments{
 \item{PI_name}{Character scalar, \code{"Last, First"} or just \code{"Last"}. A
@@ -17,6 +17,14 @@ bare \code{"Last"} falls back to \code{any_name}'s substring/fuzzy match.}
 \item{fiscal_years}{Optional integer vector of fiscal years to
 restrict the search (recommended -- an unrestricted query against a
 common surname can return hundreds of unrelated projects).}
+
+\item{org_names}{Optional character vector of organization-name
+substrings to further restrict the search (RePORTER's own
+\code{org_names} criterion). Like \code{fiscal_years}, this narrows an
+otherwise broad query against a common name -- but note it only
+matches the organization on record for that award, so someone with
+awards across multiple institutions over their career needs each
+one listed to avoid silently dropping earlier awards.}
 
 \item{limit}{Max records per page (API caps at 500).}
 }
@@ -38,8 +46,12 @@ DOE, or foundation (e.g. Gates) funding; see \code{coiCheckR} README for
 notes on extending to \code{api.nsf.gov} for NSF awards.
 }
 \examples{
+\donttest{
+# Live NIH RePORTER call -- \donttest since it isn't run by default
+# during R CMD check or routine CRAN/Bioconductor checks.
 tryCatch(
   reporterSearchPI("Smith, Anne", fiscal_years = 2020:2023),
   error = function(e) message("NIH RePORTER API unavailable: ", conditionMessage(e))
 )
+}
 }

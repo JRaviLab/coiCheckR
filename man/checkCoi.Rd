@@ -8,20 +8,37 @@ checkCoi(
   candidate_name,
   author_names,
   affiliation = NULL,
+  author_affiliations = NULL,
   coauthor_window_years = NULL,
   check_second_degree = TRUE,
   check_funding = TRUE,
-  funding_fiscal_years = NULL
+  funding_fiscal_years = NULL,
+  candidate_org_names = NULL,
+  author_org_names = NULL
 )
 }
 \arguments{
-\item{candidate_name}{Character scalar, \code{"Last FM"} PubMed-style name.}
+\item{candidate_name}{Character scalar, \code{"Last FM"} PubMed-style name.
+A full forename (\code{"Last Firstname"}) is also fine -- internally
+normalized to initials for matching -- and often searches PubMed
+more precisely than bare initials for a common surname (see
+\code{\link[=pmSearchAuthor]{pmSearchAuthor()}}'s docs).}
 
 \item{author_names}{Character vector of the manuscript's author names,
 same format.}
 
-\item{affiliation}{Optional affiliation substring to disambiguate a
-common candidate surname (passed to \code{\link[=pmSearchAuthor]{pmSearchAuthor()}}).}
+\item{affiliation}{Optional affiliation substring, or vector of
+substrings (OR-combined), to disambiguate a common candidate
+surname (passed to \code{\link[=pmSearchAuthor]{pmSearchAuthor()}}). A single string only
+matches papers from that institution -- list every institution for
+a candidate with a multi-institution career.}
+
+\item{author_affiliations}{The \code{author_names}-side counterpart to
+\code{affiliation}, applied within the second-degree check (direct
+co-authorship doesn't independently search each author, so this has
+no effect there). \code{NULL} (default), a plain vector applied to every
+author, or a list the same length as \code{author_names} for per-author
+values -- see \code{\link[=secondDegreeConflicts]{secondDegreeConflicts()}}.}
 
 \item{coauthor_window_years}{Lookback window in years for \emph{direct}
 co-authorship, or \code{NULL} for unrestricted. Many journals use 3--4
@@ -36,6 +53,11 @@ screening.}
 
 \item{funding_fiscal_years}{Optional integer vector to scope the
 RePORTER query.}
+
+\item{candidate_org_names, author_org_names}{Optional
+\code{\link[=reporterSearchPI]{reporterSearchPI()}} \code{org_names} filter, analogous to
+\code{affiliation}/\code{author_affiliations} but for the NIH RePORTER
+funding check -- see \code{\link[=reporterSharedAwards]{reporterSharedAwards()}}.}
 }
 \value{
 An object of class \code{coiReport}: a list of tibbles (\code{direct},
@@ -59,8 +81,14 @@ line with journal guidance (e.g. JOSS's COI policy) that COI judgment
 should remain with an editor who can weigh context.
 }
 \examples{
+\donttest{
+# Live PubMed/RePORTER calls -- \donttest since "Smith"/"Lee" are
+# common enough that this can be slow (many real, unrelated hits)
+# and isn't run by default during R CMD check or routine
+# CRAN/Bioconductor checks. Use `affiliation` for a real candidate.
 tryCatch(
   checkCoi("Smith AB", "Lee C"),
   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
 )
+}
 }

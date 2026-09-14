@@ -27,8 +27,12 @@ For preprint discovery, PubMed itself now indexes many bioRxiv/medRxiv
 records directly, so \code{\link[=pmSearchAuthor]{pmSearchAuthor()}} is often sufficient.
 }
 \examples{
+\donttest{
+# Live bioRxiv call -- \donttest since CRAN/Bioconductor checks
+# shouldn't depend on an external service being reachable.
 tryCatch(
   biorxivLookup("10.1101/2020.05.17.095000"),
   error = function(e) message("bioRxiv API unavailable: ", conditionMessage(e))
 )
+}
 }

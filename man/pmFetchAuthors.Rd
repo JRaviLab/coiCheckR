@@ -28,6 +28,9 @@ automatically) and parses each record's author list, publication year,
 and journal.
 }
 \examples{
+\donttest{
+# Live PubMed calls -- \donttest for the same reason as
+# pmSearchAuthor()'s example.
 tryCatch(
   {
     ids <- pmSearchAuthor("Smith AB")
@@ -35,4 +38,5 @@ tryCatch(
   },
   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 )
+}
 }

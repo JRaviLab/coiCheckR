@@ -8,10 +8,23 @@
 #' should remain with an editor who can weigh context.
 #'
 #' @param candidate_name Character scalar, `"Last FM"` PubMed-style name.
+#'   A full forename (`"Last Firstname"`) is also fine -- internally
+#'   normalized to initials for matching -- and often searches PubMed
+#'   more precisely than bare initials for a common surname (see
+#'   [pmSearchAuthor()]'s docs).
 #' @param author_names Character vector of the manuscript's author names,
 #'   same format.
-#' @param affiliation Optional affiliation substring to disambiguate a
-#'   common candidate surname (passed to [pmSearchAuthor()]).
+#' @param affiliation Optional affiliation substring, or vector of
+#'   substrings (OR-combined), to disambiguate a common candidate
+#'   surname (passed to [pmSearchAuthor()]). A single string only
+#'   matches papers from that institution -- list every institution for
+#'   a candidate with a multi-institution career.
+#' @param author_affiliations The `author_names`-side counterpart to
+#'   `affiliation`, applied within the second-degree check (direct
+#'   co-authorship doesn't independently search each author, so this has
+#'   no effect there). `NULL` (default), a plain vector applied to every
+#'   author, or a list the same length as `author_names` for per-author
+#'   values -- see [secondDegreeConflicts()].
 #' @param coauthor_window_years Lookback window in years for *direct*
 #'   co-authorship, or `NULL` for unrestricted. Many journals use 3--4
 #'   years (e.g. NIH study section policy uses 3); ICMJE-aligned
@@ -22,6 +35,10 @@
 #'   screening.
 #' @param funding_fiscal_years Optional integer vector to scope the
 #'   RePORTER query.
+#' @param candidate_org_names,author_org_names Optional
+#'   [reporterSearchPI()] `org_names` filter, analogous to
+#'   `affiliation`/`author_affiliations` but for the NIH RePORTER
+#'   funding check -- see [reporterSharedAwards()].
 #'
 #' @return An object of class `coiReport`: a list of tibbles (`direct`,
 #'   `second_degree`, `funding`), plus `status` -- one of
@@ -35,18 +52,27 @@
 #'   via the package's `print.coiReport` method, which gives a one-line
 #'   summary per evidence type.
 #' @examples
+#' \donttest{
+#' # Live PubMed/RePORTER calls -- \donttest since "Smith"/"Lee" are
+#' # common enough that this can be slow (many real, unrelated hits)
+#' # and isn't run by default during R CMD check or routine
+#' # CRAN/Bioconductor checks. Use `affiliation` for a real candidate.
 #' tryCatch(
 #'   checkCoi("Smith AB", "Lee C"),
 #'   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 checkCoi <- function(candidate_name,
                      author_names,
                      affiliation = NULL,
+                     author_affiliations = NULL,
                      coauthor_window_years = NULL,
                      check_second_degree = TRUE,
                      check_funding = TRUE,
-                     funding_fiscal_years = NULL) {
+                     funding_fiscal_years = NULL,
+                     candidate_org_names = NULL,
+                     author_org_names = NULL) {
   stopifnot(is.character(candidate_name), length(candidate_name) == 1)
   stopifnot(is.character(author_names), length(author_names) >= 1)
 
@@ -66,7 +92,8 @@ checkCoi <- function(candidate_name,
   second_degree <- if (check_second_degree) {
     sd <- secondDegreeConflicts(
       candidate_name, author_names,
-      affiliation = affiliation, min_year = min_year
+      affiliation = affiliation, author_affiliations = author_affiliations,
+      min_year = min_year
     )
     if (.sourceFailed(sd)) sources_failed <- c(sources_failed, "pubmed_second_degree")
     sd
@@ -77,7 +104,8 @@ checkCoi <- function(candidate_name,
   # --- shared funding ---
   funding <- if (check_funding) {
     f <- reporterSharedAwards(
-      candidate_name, author_names, fiscal_years = funding_fiscal_years
+      candidate_name, author_names, fiscal_years = funding_fiscal_years,
+      candidate_org_names = candidate_org_names, author_org_names = author_org_names
     )
     if (.sourceFailed(f)) sources_failed <- c(sources_failed, "nih_reporter")
     f
@@ -108,16 +136,19 @@ checkCoi <- function(candidate_name,
     candidate_name, affiliation = affiliation, min_year = min_year
   )
   failed <- .sourceFailed(cand_pubs)
+  cand_canonical <- .pm_canonical_name(candidate_name)
+  author_canonical <- .pm_canonical_name(author_names)
   cand_edges <- buildCoauthorEdges(cand_pubs) |>
     dplyr::filter(
-      .data$from == candidate_name | .data$to == candidate_name
+      .pm_name_matches_any(.data$from, cand_canonical) |
+        .pm_name_matches_any(.data$to, cand_canonical)
     ) |>
     dplyr::mutate(other = dplyr::if_else(
-      .data$from == candidate_name, .data$to, .data$from
+      .pm_name_matches_any(.data$from, cand_canonical), .data$to, .data$from
     ))
 
   result <- cand_edges |>
-    dplyr::filter(.data$other %in% author_names) |>
+    dplyr::filter(.pm_name_matches_any(.data$other, author_canonical)) |>
     dplyr::transmute(
       candidate = candidate_name,
       author = .data$other,
@@ -133,17 +164,20 @@ checkCoi <- function(candidate_name,
 #' @export
 print.coiReport <- function(x, ...) {
   status <- x$status %||% NA_character_
+  # str_glue()/glue() trims a *trailing* newline by default, so the "\n"
+  # is appended outside the glue call rather than inside its template --
+  # otherwise these lines would all run together with no line breaks.
   cat(stringr::str_glue(
-    "COI screen: {x$candidate} vs. {length(x$authors)} author(s)\n"
-  ))
-  cat(stringr::str_glue("  status:                  {status}\n"))
-  cat(stringr::str_glue("  direct co-authorship:    {nrow(x$direct)} hit(s)\n"))
-  cat(stringr::str_glue("  second-degree overlap:   {nrow(x$second_degree)} hit(s)\n"))
-  cat(stringr::str_glue("  shared NIH awards:       {nrow(x$funding)} hit(s)\n"))
+    "COI screen: {x$candidate} vs. {length(x$authors)} author(s)"
+  ), "\n", sep = "")
+  cat(stringr::str_glue("  status:                  {status}"), "\n", sep = "")
+  cat(stringr::str_glue("  direct co-authorship:    {nrow(x$direct)} hit(s)"), "\n", sep = "")
+  cat(stringr::str_glue("  second-degree overlap:   {nrow(x$second_degree)} hit(s)"), "\n", sep = "")
+  cat(stringr::str_glue("  shared NIH awards:       {nrow(x$funding)} hit(s)"), "\n", sep = "")
   if (length(x$sources_failed) > 0) {
     cat(stringr::str_glue(
-      "  ! sources failed (evidence may be incomplete): {stringr::str_c(x$sources_failed, collapse = ', ')}\n"
-    ))
+      "  ! sources failed (evidence may be incomplete): {stringr::str_c(x$sources_failed, collapse = ', ')}"
+    ), "\n", sep = "")
   }
   if (nrow(x$direct) > 0) {
     cat("\n  -- direct --\n")
@@ -172,10 +206,14 @@ print.coiReport <- function(x, ...) {
 #'   a `$summary` tibble (`candidate`, `status`, `n_direct`,
 #'   `n_second_degree`, `n_funding`, `sources_failed`) for quick triage.
 #' @examples
+#' \donttest{
+#' # Live PubMed/RePORTER calls (multiplied across every candidate) --
+#' # \donttest for the same reason as checkCoi()'s example.
 #' tryCatch(
 #'   checkCoiBatch(c("Smith AB", "Doe C"), "Lee C"),
 #'   error = function(e) message("Live PubMed/RePORTER API unavailable: ", conditionMessage(e))
 #' )
+#' }
 #' @export
 checkCoiBatch <- function(candidate_names, author_names, ...) {
   reports <- purrr::map(

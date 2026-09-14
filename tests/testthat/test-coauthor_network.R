@@ -33,3 +33,21 @@ test_that("buildCoauthorEdges drops rows with missing author_last", {
   edges <- buildCoauthorEdges(fake)
   expect_equal(nrow(edges), 0)
 })
+
+test_that(".pm_canonical_name reduces a full forename to the same form buildCoauthorEdges produces", {
+  expect_equal(.pm_canonical_name("Ravi J"), "Ravi J")
+  expect_equal(.pm_canonical_name("Ravi Janani"), "Ravi J")
+  expect_equal(.pm_canonical_name("Smith AB"), "Smith AB")
+  expect_equal(.pm_canonical_name("Smith Alice Beth"), "Smith AB")
+})
+
+test_that(".pm_canonical_name returns a single-token name unchanged", {
+  expect_equal(.pm_canonical_name("Cher"), "Cher")
+})
+
+test_that(".pm_canonical_name is vectorised", {
+  expect_equal(
+    .pm_canonical_name(c("Ravi Janani", "Smith AB")),
+    c("Ravi J", "Smith AB")
+  )
+})

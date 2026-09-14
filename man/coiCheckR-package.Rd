@@ -21,8 +21,9 @@ at \url{https://www.ncbi.nlm.nih.gov/account/settings/} and call
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/jravilab/coiCheckR}
-  \item Report bugs at \url{https://github.com/jravilab/coiCheckR/issues}
+  \item \url{https://github.com/JRaviLab/coiCheckR}
+  \item \url{https://jravilab.github.io/coiCheckR/}
+  \item Report bugs at \url{https://github.com/JRaviLab/coiCheckR/issues}
 }
 
 }

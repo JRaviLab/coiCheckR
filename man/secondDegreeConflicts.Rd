@@ -8,6 +8,7 @@ secondDegreeConflicts(
   candidate_name,
   author_names,
   affiliation = NULL,
+  author_affiliations = NULL,
   min_year = NULL,
   min_shared_pubs = 2
 )
@@ -15,11 +16,20 @@ secondDegreeConflicts(
 \arguments{
 \item{candidate_name, author_names}{As in \code{\link[=reporterSharedAwards]{reporterSharedAwards()}}.}
 
-\item{affiliation}{Optional affiliation substring to disambiguate the
-\emph{candidate} when their surname is common (passed to
-\code{\link[=pmSearchAuthor]{pmSearchAuthor()}}, same as \code{\link[=checkCoi]{checkCoi()}}'s \code{affiliation} argument).
-Without this, a common-surname candidate's second-degree results can
-include an unrelated same-named person's collaborator network.}
+\item{affiliation}{Optional affiliation substring (or vector of
+substrings, OR-combined) to disambiguate the \emph{candidate} when their
+surname is common (passed to \code{\link[=pmSearchAuthor]{pmSearchAuthor()}}, same as
+\code{\link[=checkCoi]{checkCoi()}}'s \code{affiliation} argument). Without this, a
+common-surname candidate's second-degree results can include an
+unrelated same-named person's collaborator network.}
+
+\item{author_affiliations}{The \code{author_names}-side counterpart to
+\code{affiliation}, for when one of the \emph{authors} (not the candidate) has
+a common surname. One of: \code{NULL} (default, no author-side
+filtering); a plain character vector, applied identically to every
+author; or a list the same length as \code{author_names}, one
+affiliation (scalar or vector, or \code{NULL} for "no filter") per
+author.}
 
 \item{min_year}{Restrict co-authorship evidence to this year or later
 (e.g. \code{Sys.Date() |> format("\%Y") |> as.integer() - 4} for a 4-year
@@ -46,8 +56,14 @@ three years ago being tied to a paper author is much weaker evidence
 than a recurring collaborator.
 }
 \examples{
+\donttest{
+# Live PubMed call -- \donttest since "Smith"/"Lee" are common enough
+# names that this can be slow (many real, unrelated hits) and isn't
+# run by default during R CMD check or routine CRAN/Bioconductor
+# checks. Use a real affiliation-disambiguated name for actual use.
 tryCatch(
   secondDegreeConflicts("Smith AB", "Lee C", min_year = 2020),
   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 )
+}
 }

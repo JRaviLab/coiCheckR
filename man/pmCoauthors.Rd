@@ -15,10 +15,25 @@ pmCoauthors(
 }
 \arguments{
 \item{author}{Character scalar, \code{"Last FM"} format (PubMed convention),
-e.g. \code{"Smith AB"}.}
+e.g. \code{"Smith AB"}. A full forename (e.g. \code{"Smith Alice"}) is also
+accepted and often narrows results \emph{better} than initials for a
+common surname -- PubMed's \verb{[Author]} field search is not sensitive
+to whether the forename is spelled out or abbreviated.}
 
-\item{affiliation}{Optional character scalar to narrow by affiliation
-substring. Recommended when the surname is common.}
+\item{affiliation}{Optional character scalar, or vector, to narrow by
+affiliation substring (OR-combined \emph{across} vector elements when
+more than one is given). Recommended when the surname is common. A
+single affiliation string only matches papers published while at
+that institution -- someone with a multi-institution career needs
+each affiliation listed as a separate vector element (e.g.
+\code{c("Colorado", "Michigan", "Rutgers")}) to avoid silently dropping
+earlier-career publications. \emph{Within} one element, though, multiple
+words are matched as a phrase, not OR'd word-by-word -- prefer a
+single short, distinctive word (e.g. \code{"Colorado"}) per institution
+over its full official name, since a full name has to match
+whatever exact phrasing that specific paper happened to record
+(department, campus, etc.), which varies paper to paper, whereas a
+short word is robust to that variation.}
 
 \item{min_year, max_year}{Optional integer bounds on publication year.}
 
@@ -35,8 +50,12 @@ Convenience wrapper combining \code{\link[=pmSearchAuthor]{pmSearchAuthor()}} an
 \code{\link[=pmFetchAuthors]{pmFetchAuthors()}}.
 }
 \examples{
+\donttest{
+# Live PubMed calls -- \donttest since "Smith AB" fetches every
+# matching record's full XML, which can be slow for a common name.
 tryCatch(
   pmCoauthors("Smith AB"),
   error = function(e) message("Live PubMed API unavailable: ", conditionMessage(e))
 )
+}
 }
