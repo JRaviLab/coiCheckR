@@ -6,37 +6,49 @@
 #' via PubMed's "preprint" linkouts, or a DOI cited in the manuscript's
 #' bibliography), not to discover a candidate's preprints from scratch.
 #' For preprint discovery, PubMed itself now indexes many bioRxiv/medRxiv
-#' records directly, so [pm_search_author()] is often sufficient.
+#' records directly, so [pmSearchAuthor()] is often sufficient.
 #'
-#' @param doi Character scalar, e.g. `"10.1101/2020.05.17.095000"`.
+#' @param DOI Character scalar, e.g. `"10.1101/2020.05.17.095000"`.
 #' @param server One of `"biorxiv"` or `"medrxiv"`.
 #'
-#' @return A one-row tibble with `doi`, `title`, `authors` (single
+#' @return A one-row tibble with `DOI`, `title`, `authors` (single
 #'   semicolon-delimited string, as returned by the API), `date`,
 #'   `category`, `published` (linked journal DOI once formally
 #'   published, or `NA`). Returns zero rows if the DOI is not found.
+#' @examples
+#' \donttest{
+#' # Live bioRxiv call -- \donttest since CRAN/Bioconductor checks
+#' # shouldn't depend on an external service being reachable.
+#' tryCatch(
+#'   biorxivLookup("10.1101/2020.05.17.095000"),
+#'   error = function(e) message("bioRxiv API unavailable: ", conditionMessage(e))
+#' )
+#' }
 #' @export
-biorxiv_lookup <- function(doi, server = c("biorxiv", "medrxiv")) {
-  server <- match.arg(server)
-  url <- sprintf("https://api.biorxiv.org/details/%s/%s", server, doi)
+biorxivLookup <- function(DOI, server = c("biorxiv", "medrxiv")) {
+  server <- rlang::arg_match(server)
+  url <- stringr::str_glue("https://api.biorxiv.org/details/{server}/{DOI}")
 
   resp <- httr2::request(url) |>
     httr2::req_error(is_error = \(resp) FALSE) |>
     httr2::req_perform()
 
   if (httr2::resp_status(resp) >= 400) {
-    warning(sprintf("bioRxiv lookup failed (HTTP %s) for doi = '%s'",
-                     httr2::resp_status(resp), doi))
+    warning(stringr::str_glue(
+      "bioRxiv lookup failed (HTTP {httr2::resp_status(resp)}) for DOI = '{DOI}'"
+    ))
     return(.empty_biorxiv_tbl())
   }
 
   parsed <- httr2::resp_body_json(resp, simplifyVector = FALSE)
   coll <- parsed$collection
-  if (length(coll) == 0) return(.empty_biorxiv_tbl())
+  if (length(coll) == 0) {
+    return(.empty_biorxiv_tbl())
+  }
 
-  rec <- coll[[length(coll)]]  # last entry = most recent version
+  rec <- coll[[length(coll)]] # last entry = most recent version
   tibble::tibble(
-    doi = rec$doi %||% doi,
+    DOI = rec$doi %||% DOI,
     title = rec$title %||% NA_character_,
     authors = rec$authors %||% NA_character_,
     date = rec$date %||% NA_character_,
@@ -47,7 +59,7 @@ biorxiv_lookup <- function(doi, server = c("biorxiv", "medrxiv")) {
 
 .empty_biorxiv_tbl <- function() {
   tibble::tibble(
-    doi = character(), title = character(), authors = character(),
+    DOI = character(), title = character(), authors = character(),
     date = character(), category = character(), published = character()
   )
 }
@@ -59,10 +71,14 @@ biorxiv_lookup <- function(doi, server = c("biorxiv", "medrxiv")) {
 #' for downstream matching against PubMed-style names.
 #'
 #' @param authors_string A single string as returned in
-#'   [biorxiv_lookup()]'s `authors` column.
+#'   [biorxivLookup()]'s `authors` column.
 #' @return Character vector of individual author names.
+#' @examples
+#' biorxivSplitAuthors("Smith A.; Lee C.D.; Doe E.")
 #' @export
-biorxiv_split_authors <- function(authors_string) {
-  if (is.na(authors_string) || !nzchar(authors_string)) return(character())
-  trimws(strsplit(authors_string, ";")[[1]])
+biorxivSplitAuthors <- function(authors_string) {
+  if (is.na(authors_string) || !nzchar(authors_string)) {
+    return(character())
+  }
+  stringr::str_trim(stringr::str_split(authors_string, stringr::fixed(";"))[[1]])
 }

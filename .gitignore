@@ -47,3 +47,10 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+/doc/
+/Meta/
+docs
+
+# stray knitr figure output when precompile.R is run from the package
+# root (fig.path resolves relative to cwd, not the vignette's directory)
+/figure/

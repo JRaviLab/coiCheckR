@@ -1,8 +1,8 @@
 Package: coiCheckR
 Title: Screen Peer Reviewer Candidates for Conflicts of Interest
-Version: 0.1.0
+Version: 0.99.0
 Authors@R: person("Janani", "Ravi", email = "janani.ravi@cuanschutz.edu",
-    role = c("aut", "cre"))
+    role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7443-925X"))
 Description: Screens candidate peer reviewers (for journal manuscripts or
     grant applications) against a manuscript's author list for conflicts
     of interest. Builds co-authorship evidence from PubMed/PMC via
@@ -17,12 +17,10 @@ Description: Screens candidate peer reviewers (for journal manuscripts or
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
 Depends: R (>= 4.2.0)
 Imports:
     rentrez,
     httr2,
-    jsonlite,
     xml2,
     tibble,
     dplyr,
@@ -31,12 +29,14 @@ Imports:
     rlang,
     igraph
 Suggests:
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.10),
     knitr,
     rmarkdown,
+    pkgdown,
     withr
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://github.com/jravilab/coiCheckR
-BugReports: https://github.com/jravilab/coiCheckR/issues
-biocViews: Software, Visualization, ResearchTools
+URL: https://github.com/JRaviLab/coiCheckR, https://jravilab.github.io/coiCheckR/
+BugReports: https://github.com/JRaviLab/coiCheckR/issues
+biocViews: Software, BiomedicalInformatics, ReportWriting, Visualization
+Config/roxygen2/version: 8.1.0

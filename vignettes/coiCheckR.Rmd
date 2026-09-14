@@ -1,0 +1,234 @@
+---
+title: "Screening peer-reviewer candidates with coiCheckR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Screening peer-reviewer candidates with coiCheckR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+<!--
+This file (coiCheckR.Rmd.orig) is the SOURCE for vignettes/coiCheckR.Rmd.
+It is knit once, by hand, with live network access -- see
+vignettes/precompile.R -- and the *result* (coiCheckR.Rmd) is what's
+committed and what ships with the package. This is the standard
+"precompiled vignette" pattern for packages that wrap external APIs
+(used by httr2, gargle, googlesheets4, plumber, etc.): CRAN/Bioconductor
+build the already-rendered output with no network dependency at check
+time, while readers still see real output instead of empty code blocks.
+
+To refresh the example output (e.g. after an API change, or just to
+pick up newer publications/awards), re-run vignettes/precompile.R from
+the package root and commit the regenerated coiCheckR.Rmd.
+-->
+
+## Motivation
+
+Editors screening peer-reviewer candidates usually check for direct
+co-authorship with a manuscript's authors and stop there. In a small
+field, that misses two common conflict patterns: a candidate who
+shares a *frequent collaborator* with an author (second-degree
+conflict), and a candidate who shares *federal funding* with an author
+with no joint publication yet. `coiCheckR` checks all three and
+returns evidence for each -- not a conflicted/clear verdict, since
+that judgment call should stay with the editor.
+
+This vignette's example is a real, consented ground-truth case rather
+than fictional names: `"Ravi Janani"` and `"Ghosh A"` as two reviewer
+candidates, being screened against a manuscript by `"Brenner E"` and
+`"Krishnan A"`. Ravi Janani has a known direct co-authorship with
+Brenner E, *and* both a co-authorship and shared NIH funding with
+Krishnan A -- two independent evidence types for the same pair. Ghosh
+A's actual relationship to the manuscript's authors, if any, is left
+for the live output below to show.
+
+A full forename (`"Ravi Janani"` rather than `"Ravi J"`) both searches
+PubMed more precisely for a common surname and is handled correctly
+for matching -- see `vignette("testing-workflow")` for exactly how.
+`affiliation` narrows further still; list every institution across a
+multi-institution career as a separate vector element (OR-combined),
+since each only matches the affiliation recorded *on that specific
+publication* -- and prefer a short, distinctive word per institution
+(`"Virginia"`) over its full or colloquial name (`"Virginia Tech"`
+literally returns zero hits here, since PubMed matches a multi-word
+element as a phrase, not word-by-word, and that exact phrase never
+appears in any affiliation string on record).
+
+
+``` r
+library(coiCheckR)
+```
+
+## A single candidate, all three checks
+
+
+``` r
+report <- checkCoi(
+  candidate_name = "Ravi Janani",
+  author_names = "Brenner E",
+  affiliation = c("Colorado", "Michigan", "Rutgers", "Virginia"),
+  check_second_degree = TRUE,
+  check_funding = TRUE
+)
+report
+#> COI screen: Ravi Janani vs. 1 author(s)
+#>   status:                  potential_conflict
+#>   direct co-authorship:    8 hit(s)
+#>   second-degree overlap:   28 hit(s)
+#>   shared NIH awards:       0 hit(s)
+#> 
+#>   -- direct --
+#> # A tibble: 8 × 4
+#>   candidate   author     PMID      year
+#>   <chr>       <chr>      <chr>    <int>
+#> 1 Ravi Janani Brenner EP 38809013  2024
+#> 2 Ravi Janani Brenner EP 40425396  2025
+#> 3 Ravi Janani Brenner EP 41040319  2025
+#> 4 Ravi Janani Brenner EP 41279520  2025
+#> 5 Ravi Janani Brenner EP 41641989  2026
+#> 6 Ravi Janani Brenner EP 41935917  2026
+#> 7 Ravi Janani Brenner E  42079283  2026
+#> 8 Ravi Janani Brenner EP 42523430  2026
+#> 
+#>   -- second-degree (review, not auto-exclude) --
+#> # A tibble: 28 × 4
+#>    candidate_collaborator linked_author n_shared_with_candidate evidence_PMID
+#>    <chr>                  <chr>                           <int> <chr>        
+#>  1 Anantharaman V         Brenner E                           2 38809013     
+#>  2 Aravind L              Brenner E                           2 38809013     
+#>  3 Boyer EA               Brenner E                           2 41279520     
+#>  4 Boyer EA               Brenner E                           2 42523430     
+#>  5 Burke JT               Brenner E                           3 41279520     
+#>  6 Clatworthy AE          Brenner E                           2 41040319     
+#>  7 Clatworthy AE          Brenner E                           2 41641989     
+#>  8 Cosimi LA              Brenner E                           2 41040319     
+#>  9 Cosimi LA              Brenner E                           2 41641989     
+#> 10 Datta P                Brenner E                           3 38809013     
+#> # ℹ 18 more rows
+```
+
+`report$direct` holds one row per shared publication (PMID and year),
+`report$second_degree` one row per collaborator-mediated path, and
+`report$funding` one row per shared NIH award -- each independently
+verifiable evidence, not a verdict. `report$status` and
+`report$sources_failed` (see `?checkCoi`) tell you whether that's a
+genuine clean result or one where a source didn't respond.
+
+## Screening a shortlist at once
+
+
+``` r
+batch <- checkCoiBatch(
+  candidate_names = c("Ravi Janani", "Ghosh A"),
+  author_names = "Krishnan A",
+  check_second_degree = TRUE,
+  check_funding = TRUE
+)
+
+batch$summary
+#> # A tibble: 2 × 6
+#>   candidate   status           n_direct n_second_degree n_funding sources_failed
+#>   <chr>       <chr>               <int>           <int>     <int> <chr>         
+#> 1 Ravi Janani potential_confl…        0               0         1 ""            
+#> 2 Ghosh A     no_conflict_det…        0               0         0 ""
+```
+
+`formatCoiSummary()` turns the same result into plain-text lines
+suitable for pasting into an email to a co-editor:
+
+
+``` r
+cat(formatCoiSummary(batch), sep = "\n")
+#> Ravi Janani -- 0 direct, 0 second-degree, 1 funding [potential_conflict]
+#> Ghosh A -- 0 direct, 0 second-degree, 0 funding [no_conflict_detected]
+```
+
+## Shared NIH funding
+
+Some conflicts show up in funding before they show up in the
+literature -- e.g. a shared multi-PI award with no joint publication
+yet. `reporterSharedAwards()` cross-references NIH RePORTER project
+numbers directly:
+
+
+``` r
+this_year <- as.integer(format(Sys.Date(), "%Y"))
+last_10y <- (this_year - 9):this_year
+
+reporterSharedAwards("Ravi, Janani", "Krishnan, Arjun", fiscal_years = last_10y)
+#> # A tibble: 1 × 12
+#>   project_num    fiscal_year_candidate org_name_candidate project_title_candid…¹
+#>   <chr>                          <int> <chr>              <chr>                 
+#> 1 5R21AI169301-…                  2023 <NA>               Mechanism-guided drug…
+#> # ℹ abbreviated name: ¹​project_title_candidate
+#> # ℹ 8 more variables: contact_PI_candidate <chr>, all_PIs_candidate <list>,
+#> #   fiscal_year_author <int>, org_name_author <chr>,
+#> #   project_title_author <chr>, contact_PI_author <chr>, all_PIs_author <list>,
+#> #   queried_author <chr>
+```
+
+## Visualizing a batch result
+
+
+``` r
+reports <- batch[setdiff(names(batch), "summary")]
+plotCoiNetwork(reports)
+```
+
+![plot of chunk plot](coiCheckR_files/figure-precompiled/plot-1.png)
+
+## A note on evidence vs. verdicts
+
+Every function in this package returns evidence -- PMIDs, award
+numbers, collaborator names -- rather than a binary conflicted/clear
+flag. Two candidates with the same number of `direct` hits can warrant
+different editorial decisions depending on recency, the nature of the
+collaboration, and context the tool has no way to know. `coiCheckR` is
+meant to make that judgment call easier to make well, not to make it
+for you.
+
+For a lower-level, function-by-function walkthrough (useful when
+verifying the package's own plumbing rather than just using it), see
+`vignette("testing-workflow")`.
+
+## Session info
+
+
+``` r
+sessionInfo()
+#> R version 4.6.1 (2026-06-24)
+#> Platform: aarch64-apple-darwin23
+#> Running under: macOS Tahoe 26.6.2
+#> 
+#> Matrix products: default
+#> BLAS:   /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRblas.0.dylib 
+#> LAPACK: /Library/Frameworks/R.framework/Versions/4.6/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1
+#> 
+#> locale:
+#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+#> 
+#> time zone: America/Denver
+#> tzcode source: internal
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> other attached packages:
+#> [1] coiCheckR_0.99.0 testthat_3.3.2  
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] jsonlite_2.0.0    dplyr_1.2.1       compiler_4.6.1    brio_1.1.5       
+#>  [5] tidyselect_1.2.1  xml2_1.6.0        stringr_1.6.0     rentrez_1.2.4    
+#>  [9] fastmap_1.2.0     R6_2.6.1          generics_0.1.4    curl_7.1.0       
+#> [13] igraph_2.3.3      knitr_1.51        httr2_1.3.0       XML_3.99-0.23    
+#> [17] tibble_3.3.1      desc_1.4.3        rprojroot_2.1.1   pillar_1.11.1    
+#> [21] rlang_1.3.0       utf8_1.2.6        cachem_1.1.0      stringi_1.8.9    
+#> [25] xfun_0.60         fs_2.1.0          pkgload_1.5.3     otel_0.2.0       
+#> [29] memoise_2.0.1     cli_3.6.6         withr_3.0.3       magrittr_2.0.5   
+#> [33] rstudioapi_0.19.0 devtools_2.5.2    lifecycle_1.0.5   vctrs_0.7.3      
+#> [37] evaluate_1.0.5    glue_1.8.1        sessioninfo_1.2.4 pkgbuild_1.4.8   
+#> [41] httr_1.4.8        purrr_1.2.2       tools_4.6.1       usethis_3.2.1    
+#> [45] pkgconfig_2.0.3   ellipsis_0.3.3
+```

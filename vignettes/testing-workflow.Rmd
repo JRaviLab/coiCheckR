@@ -1,0 +1,314 @@
+---
+title: "A function-by-function walkthrough of coiCheckR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{A function-by-function walkthrough of coiCheckR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup-opts, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = identical(Sys.getenv("COICHECKR_RUN_LIVE_TESTS"), "true")
+)
+```
+
+## Why this vignette exists
+
+`vignette("coiCheckR")` shows the package the way an editor would use
+it -- start with `checkCoi()`, get a report. This vignette instead
+walks through the pieces `checkCoi()` is built from, one at a time, in
+the order they naturally compose: raw PubMed search, then fetching
+metadata for those results, then building a co-authorship graph from
+that metadata, then the higher-level conflict checks, then the
+composite report, then presentation/visualization. It's meant for
+verifying the package's plumbing -- if something looks wrong in a
+`checkCoi()` result, this walkthrough helps narrow down *which layer*
+produced it.
+
+Live network calls here are gated behind the `COICHECKR_RUN_LIVE_TESTS`
+environment variable and do not run during package build/check, same
+as `vignette("coiCheckR")`. Set it (plus real names below) to run this
+locally.
+
+```{r setup}
+# If you have this repo cloned locally (e.g. you're reviewing a PR
+# branch), load it directly -- this reflects exactly what's on disk, no
+# network involved. Note the path: knitr evaluates vignette chunks with
+# the *vignette's own directory* as the working directory, so this is
+# ".." (the package root), not ".":
+devtools::load_all("..")
+
+# Otherwise, to install from GitHub -- devtools::install_github() is
+# still the current, supported way to do this (it delegates to
+# remotes::install_github() under the hood). Installing plain
+# "JRaviLab/coiCheckR" gets the *default* branch (main); pass `ref` to
+# install a specific PR branch instead:
+# devtools::install_github(
+#   "JRaviLab/coiCheckR",
+#   ref = "fix/bioconductor-packaging-and-live-api-bugs"
+# )
+# library(coiCheckR)
+```
+
+```{r names}
+# Optional: raise the PubMed rate limit from 3 to 10 req/sec if you're
+# going to run more than a handful of these (free key, no account
+# needed beyond an NCBI login):
+# https://www.ncbi.nlm.nih.gov/account/settings/
+# setNCBIKey("your-ncbi-api-key")
+
+candidate <- "Ravi Janani" # the reviewer candidate being screened. A full
+                            # forename here is fine -- and searches PubMed
+                            # *more* precisely than bare initials (34 hits
+                            # vs. 105 for "Ravi J") -- because the package
+                            # internally reduces every name to "Last F" for
+                            # matching (see .pm_canonical_name(), and step 4
+                            # below for exactly where that happens)
+
+# 34 hits for "Ravi Janani" is still not unique enough on its own.
+# `affiliation` narrows the underlying PubMed search to a substring
+# match on the recorded affiliation string -- and since that reflects
+# whatever institution was listed *at the time of that publication*,
+# not a current affiliation, someone with a multi-institution career
+# needs every one listed, one per vector element (23/34 papers, filtered
+# this way), or earlier-career papers are silently dropped.
+#
+# Two DIFFERENT things are going on here, worth not conflating:
+#   - ACROSS vector elements, this is OR: any paper matching Colorado,
+#     OR Michigan, OR Rutgers, OR Virginia is included.
+#   - WITHIN one element, PubMed matches it as a literal phrase, not
+#     OR'd word-by-word. "Virginia Tech" (as one element) returns
+#     *zero* hits -- it never appears verbatim in any affiliation
+#     string (they record the full official name instead) -- while
+#     "Virginia" alone correctly catches that same real paper. Prefer a
+#     single short, distinctive word per institution over its full
+#     official/colloquial name for exactly this reason.
+affiliation <- c("Colorado", "Michigan", "Rutgers", "Virginia")
+
+candidate2 <- "Last FM" # substitute a second real candidate of your
+                        # own for the batch step (10) -- a generic
+                        # name like "Doe C" isn't a reliable "clean"
+                        # comparison since it can collide with real,
+                        # unrelated PubMed authors of that name
+
+# All four have co-published with `candidate`; Krishnan A and Waters C
+# additionally share NIH funding with `candidate` (expected in step 7).
+authors <- c(
+  "Brenner E",  # Evan Brenner      -- co-authorship
+  "Ghosh A",    # Abhirupa Ghosh    -- co-authorship
+  "Krishnan A", # Arjun Krishnan    -- co-authorship + shared NIH funding
+  "Waters C"    # Christopher Waters -- co-authorship + shared NIH funding
+)
+```
+
+## 1. Raw PubMed search
+
+The lowest level: confirms the PubMed connection works and returns
+PMIDs for a known name.
+
+```{r step1-search}
+ids <- pmSearchAuthor(candidate, affiliation = affiliation)
+ids
+```
+
+## 2. Fetch metadata for those PMIDs
+
+Turns PMIDs into a tidy per-(PMID, author) table -- this is what
+author-name matching happens against downstream, so it's worth
+eyeballing directly.
+
+```{r step2-fetch}
+pubs <- pmFetchAuthors(ids[seq_len(min(10, length(ids)))])
+pubs
+```
+
+## 3. `pmCoauthors()`: steps 1+2 in one call
+
+This is the convenience wrapper everything downstream actually uses.
+
+```{r step3-coauthors}
+pubs <- pmCoauthors(candidate, affiliation = affiliation)
+pubs
+```
+
+## 4. Build the co-authorship edge list
+
+Pairs up co-authors sharing a PMID. `candidate` has published directly
+with all four of `authors`, so each should show up on an edge with
+`candidate` here -- but note `edges$from`/`edges$to` are always in
+reduced "Last F" form (that's what `buildCoauthorEdges()` builds them
+as from PubMed's own `author_last`/`author_fore` fields), so comparing
+against `candidate` directly only works because `candidate` is already
+in that form for this example. A full-forename `candidate` like
+`"Ravi Janani"` needs the same reduction applied before comparing --
+`coiCheckR:::.pm_canonical_name()` is the (internal, `:::`-only)
+function that does it, and is exactly what `checkCoi()` uses internally
+so you don't have to do this by hand in normal use.
+
+The comparison also needs to tolerate a middle initial PubMed records
+on one paper but not another for the same person (e.g. "Waters C" on
+one record, "Waters CM" on the next) -- `coiCheckR:::.pm_name_matches_any()`
+is the prefix-tolerant matcher `checkCoi()` itself uses internally for
+exactly this; a plain `==`/`%in%` here would silently under-count
+relative to what `checkCoi()` actually finds in step 9.
+
+```{r step4-edges}
+edges <- buildCoauthorEdges(pubs)
+candidate_canonical <- coiCheckR:::.pm_canonical_name(candidate)
+candidate_canonical # "Ravi J" -- this is what actually gets compared
+
+cand_edges <- edges |>
+  dplyr::filter(
+    coiCheckR:::.pm_name_matches_any(from, candidate_canonical) |
+      coiCheckR:::.pm_name_matches_any(to, candidate_canonical)
+  )
+cand_edges
+
+# Narrowed to just the edges connecting `candidate` to `authors`:
+cand_edges |>
+  dplyr::filter(
+    (coiCheckR:::.pm_name_matches_any(from, candidate_canonical) &
+      coiCheckR:::.pm_name_matches_any(to, authors)) |
+      (coiCheckR:::.pm_name_matches_any(to, candidate_canonical) &
+        coiCheckR:::.pm_name_matches_any(from, authors))
+  )
+```
+
+## 5. Second-degree conflicts
+
+Candidate hasn't published directly with one of `authors`, but shares
+a frequent collaborator who has. Slower than direct co-authorship --
+one PubMed query per author checked.
+
+```{r step5-second-degree}
+secondDegreeConflicts(candidate, authors, affiliation = affiliation, min_year = 2020)
+```
+
+## 6. NIH RePORTER: one PI's awards
+
+Independent of PubMed -- confirms the funding-side lookup works on its
+own. `candidate`, Krishnan A, and Waters C should each return awards
+individually before step 7 cross-references them.
+
+```{r step6-reporter}
+this_year <- as.integer(format(Sys.Date(), "%Y"))
+last_10y <- (this_year - 9):this_year
+
+reporterSearchPI("Ravi, Janani", fiscal_years = last_10y)
+reporterSearchPI("Krishnan, Arjun", fiscal_years = last_10y)
+reporterSearchPI("Waters, Christopher", fiscal_years = last_10y)
+```
+
+## 7. NIH RePORTER: shared awards
+
+Cross-references `candidate`'s project numbers against all four
+`authors`. Expect hits against Krishnan A and/or Waters C here, even
+though all four show up as co-authors in step 4 -- funding overlap and
+publication overlap are independent evidence types.
+
+```{r step7-shared-awards}
+reporterSharedAwards(candidate, authors, fiscal_years = last_10y)
+```
+
+## 8. bioRxiv preprint enrichment (optional)
+
+Only useful if you already have a DOI in hand (e.g. from a
+manuscript's bibliography) -- bioRxiv has no name-search endpoint of
+its own, so this one isn't keyed off `candidate`/`authors` like the
+others. Substitute a real preprint DOI (e.g. one co-authored by
+`candidate` and one of `authors`) to see it resolved.
+
+```{r step8-biorxiv}
+biorxivLookup("10.1101/2020.05.17.095000")
+```
+
+## 9. `checkCoi()`: everything above, combined
+
+This is what an editor actually calls. `report$direct` should have a
+row for each of the four `authors` (from step 4), and `report$funding`
+should have a row for Krishnan A and/or Waters C (from step 7).
+
+```{r step9-checkcoi}
+report <- checkCoi(
+  candidate, authors, affiliation = affiliation,
+  check_second_degree = TRUE, check_funding = TRUE
+)
+report      # print.coiReport(): one-line summary + status
+summary(report)
+```
+
+## 10. `checkCoiBatch()`: several candidates at once
+
+```{r step10-batch}
+batch <- checkCoiBatch(c(candidate, candidate2), authors)
+batch$summary
+cat(formatCoiSummary(batch), sep = "\n")
+```
+
+## 11. Visualize
+
+```{r step11-plot, fig.width = 6, fig.height = 6}
+g <- coiToGraph(report)
+plotCoiNetwork(report)
+```
+
+## 12. Failure handling
+
+The behavior this package is most careful about: disconnect from the
+network, then re-run step 9. `status` should read
+`"insufficient_evidence"` and `sources_failed` should name which
+source(s) errored -- never silently `"no_conflict_detected"`. (The
+same behavior is also covered without a live network in
+`tests/testthat/test-status.R`, which mocks a `rentrez` failure via
+`testthat::local_mocked_bindings()`.)
+
+```{r step12-failure, eval = FALSE}
+# eval = FALSE always, even when COICHECKR_RUN_LIVE_TESTS is set --
+# running this with a live, working connection would just succeed
+# normally and not demonstrate the failure path at all. Actually
+# exercising this requires deliberately breaking connectivity first
+# (or see tests/testthat/test-status.R for the mocked version, which
+# does run automatically as part of the package's test suite).
+offline_report <- checkCoi(candidate, authors)
+offline_report$status          # "insufficient_evidence"
+offline_report$sources_failed  # e.g. c("pubmed", "nih_reporter")
+```
+
+## What each stage tells you
+
+Steps 1-8 are the raw evidence sources -- if one of these misbehaves,
+the problem is isolated to a single API wrapper. Step 9 (`checkCoi()`)
+should just be steps 4, 5, and 7 stitched together, so anything that
+disagrees between step 9 and the earlier steps points at the stitching
+logic in `coi_report.R` rather than the API wrappers themselves. Steps
+10-11 are pure presentation over an already-built report, so bugs
+there are display/formatting issues, not evidence-gathering ones.
+
+With the example names above, expect:
+
+- `Ravi J` x `Brenner E`, `Ghosh A`, `Krishnan A`, `Waters C` -- a
+  **direct co-authorship** hit for all four (steps 4 and 9).
+- `Ravi J` x `Krishnan A` and `Ravi J` x `Waters C` -- **also** a
+  shared NIH funding hit (steps 6, 7, and 9), on top of the
+  co-authorship above. Co-authorship and funding overlap are
+  independent evidence types, so seeing both for the same pair here is
+  expected, not redundant.
+- Step 10's second candidate (`candidate2`) has no fixed expectation
+  here -- substitute someone whose actual relationship to `authors`
+  you know, and check the batch summary against that, the same way
+  you're checking `candidate` above.
+
+If any of the above doesn't match, that's the concrete signal of
+where to look: a missing co-authorship hit points at steps 1-4, a
+missing funding hit points at steps 6-7, and a mismatch only in step 9
+(but not in the earlier steps) points at `checkCoi()`'s own stitching
+logic in `coi_report.R`.
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```
