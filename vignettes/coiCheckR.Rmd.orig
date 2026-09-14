@@ -8,7 +8,16 @@ vignette: >
 ---
 
 ```{r setup-opts, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+# fig.path pinned explicitly -- knitr::knit()'s default resolves relative
+# to the working directory at knit time, which is the package root when
+# precompile.R is run from there (see vignettes/precompile.R), not this
+# file's own directory. Without this, precompiling leaves a stray
+# /figure/ directory at the package root instead of alongside the
+# vignette where it belongs.
+knitr::opts_chunk$set(
+  collapse = TRUE, comment = "#>",
+  fig.path = "coiCheckR_files/figure-precompiled/"
+)
 ```
 
 <!--
